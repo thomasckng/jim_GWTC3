@@ -19,7 +19,6 @@ from jimgw.prior import (
     CosinePrior,
     SinePrior,
     PowerLawPrior,
-    UniformSpherePrior,
     UniformPeriodicPrior,
 )
 from jimgw.transforms import PeriodicTransform
@@ -29,14 +28,12 @@ from jimgw.single_event.waveform import RippleIMRPhenomPv2
 from jimgw.transforms import BoundToUnbound
 from jimgw.single_event.transforms import (
     SkyFrameToDetectorFrameSkyPositionTransform,
-    SphereSpinToCartesianSpinTransform,
     MassRatioToSymmetricMassRatioTransform,
     DistanceToSNRWeightedDistanceTransform,
     GeocentricArrivalTimeToDetectorArrivalTimeTransform,
     GeocentricArrivalPhaseToDetectorArrivalPhaseTransform,
+    PrecessingSpinToCartesianSpinTransform,
 )
-# from jimgw.single_event.utils import Mc_q_to_m1_m2
-# from flowMC.strategy.optimization import optimization_Adam
 
 jax.config.update("jax_enable_x64", True)
 
@@ -147,14 +144,22 @@ def run_pe(args: argparse.Namespace,
     prior = prior + [Mc_prior, q_prior]
 
     # Spin prior
-    s1_prior = UniformSpherePrior(parameter_names=["s1"])
-    s2_prior = UniformSpherePrior(parameter_names=["s2"])
-    iota_prior = SinePrior(parameter_names=["iota"])
+    theta_jn_prior = SinePrior(parameter_names=["theta_jn"])
+    phi_jl_prior = UniformPeriodicPrior(0.0, 2 * jnp.pi, parameter_names=["phi_jl"])
+    tilt_1_prior = SinePrior(parameter_names=["tilt_1"])
+    tilt_2_prior = SinePrior(parameter_names=["tilt_2"])
+    phi_12_prior = UniformPeriodicPrior(0.0, 2 * jnp.pi, parameter_names=["phi_12"])
+    a_1_prior = UniformPrior(0.0, 0.99, parameter_names=["a_1"])
+    a_2_prior = UniformPrior(0.0, 0.99, parameter_names=["a_2"])
 
     prior = prior + [
-        s1_prior,
-        s2_prior,
-        iota_prior,
+        theta_jn_prior,
+        phi_jl_prior,
+        tilt_1_prior,
+        tilt_2_prior,
+        phi_12_prior,
+        a_1_prior,
+        a_2_prior,
     ]
 
     # Extrinsic prior
@@ -185,23 +190,22 @@ def run_pe(args: argparse.Namespace,
         SkyFrameToDetectorFrameSkyPositionTransform(gps_time=gps, ifos=ifos),
         BoundToUnbound(name_mapping = (["M_c"], ["M_c_unbounded"]), original_lower_bound=Mc_lower, original_upper_bound=Mc_upper),
         BoundToUnbound(name_mapping = (["q"], ["q_unbounded"]), original_lower_bound=q_min, original_upper_bound=q_max),
-        PeriodicTransform(name_mapping = (["s1_phi_base_r", "s1_phi"], ["s1_phi_base_x", "s1_phi_base_y"]), xmin=0.0, xmax=2 * jnp.pi),
-        PeriodicTransform(name_mapping = (["s2_phi_base_r", "s2_phi"], ["s2_phi_base_x", "s2_phi_base_y"]), xmin=0.0, xmax=2 * jnp.pi),
-        BoundToUnbound(name_mapping = (["iota"], ["iota_unbounded"]) , original_lower_bound=0.0, original_upper_bound=jnp.pi),
-        BoundToUnbound(name_mapping = (["s1_theta"], ["s1_theta_unbounded"]) , original_lower_bound=0.0, original_upper_bound=jnp.pi),
-        BoundToUnbound(name_mapping = (["s2_theta"], ["s2_theta_unbounded"]) , original_lower_bound=0.0, original_upper_bound=jnp.pi),
-        BoundToUnbound(name_mapping = (["s1_mag"], ["s1_mag_unbounded"]) , original_lower_bound=0.0, original_upper_bound=0.99),
-        BoundToUnbound(name_mapping = (["s2_mag"], ["s2_mag_unbounded"]) , original_lower_bound=0.0, original_upper_bound=0.99),
         PeriodicTransform(name_mapping = (["psi_base_r", "psi"], ["psi_base_x", "psi_base_y"]), xmin=0.0, xmax=jnp.pi),
         PeriodicTransform(name_mapping = (["phase_c_base_r", "phase_det"], ["phase_det_x", "phase_det_y"]), xmin=0.0, xmax=2 * jnp.pi),
         BoundToUnbound(name_mapping = (["zenith"], ["zenith_unbounded"]), original_lower_bound=0.0, original_upper_bound=jnp.pi),
         PeriodicTransform(name_mapping = (["ra_base_r", "azimuth"], ["azimuth_x", "azimuth_y"]), xmin=0.0, xmax=2 * jnp.pi),
+        BoundToUnbound(name_mapping = (["theta_jn"], ["theta_jn_unbounded"]), original_lower_bound=0.0, original_upper_bound=jnp.pi),
+        PeriodicTransform(name_mapping = (["phi_jl_base_r", "phi_jl"], ["phi_jl_x", "phi_jl_y"]), xmin=0.0, xmax=2 * jnp.pi),
+        BoundToUnbound(name_mapping = (["tilt_1"], ["tilt_1_unbounded"]), original_lower_bound=0.0, original_upper_bound=jnp.pi),
+        BoundToUnbound(name_mapping = (["tilt_2"], ["tilt_2_unbounded"]), original_lower_bound=0.0, original_upper_bound=jnp.pi),
+        PeriodicTransform(name_mapping = (["phi_12_base_r", "phi_12"], ["phi_12_x", "phi_12_y"]), xmin=0.0, xmax=2 * jnp.pi),
+        BoundToUnbound(name_mapping = (["a_1"], ["a_1_unbounded"]), original_lower_bound=0.0, original_upper_bound=0.99),
+        BoundToUnbound(name_mapping = (["a_2"], ["a_2_unbounded"]), original_lower_bound=0.0, original_upper_bound=0.99),
     ]
 
     likelihood_transforms = [
         MassRatioToSymmetricMassRatioTransform,
-        SphereSpinToCartesianSpinTransform("s1"),
-        SphereSpinToCartesianSpinTransform("s2"),
+        PrecessingSpinToCartesianSpinTransform,
     ]
 
     # likelihood = TransientLikelihoodFD(
@@ -262,14 +266,15 @@ def run_pe(args: argparse.Namespace,
 
     rng_key = jax.random.PRNGKey(12345)
     jim.sample(rng_key)
-    jim.print_summary()
-    
-    # Postprocessing comes here
-    samples = jim.get_samples()
-    jnp.savez(os.path.join(args.outdir, args.event_id, "samples.npz"), **samples)
 
     total_time_end = time.time()
     print(f"Time taken: {total_time_end - total_time_start} seconds = {(total_time_end - total_time_start) / 60} minutes")
+
+    # Postprocessing comes here
+
+    jim.print_summary()
+    samples = jim.get_samples()
+    jnp.savez(os.path.join(args.outdir, args.event_id, "samples.npz"), **samples)
 
     out_train = jim.sampler.get_sampler_state(training=True)
 
