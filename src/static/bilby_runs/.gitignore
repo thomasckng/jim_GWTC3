@@ -1,6 +1,6 @@
 samples_posterior_birefringence.feather
 psd/
-outdir/
+outdir*/
 data/
 result/
 get_data.sh

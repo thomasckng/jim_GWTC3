@@ -25,7 +25,7 @@ from jimgw.prior import (
 from jimgw.transforms import PeriodicTransform
 from jimgw.single_event.detector import H1, L1, V1, GroundBased2G
 from jimgw.single_event.likelihood import TransientLikelihoodFD, HeterodynedTransientLikelihoodFD
-from jimgw.single_event.waveform import RippleIMRPhenomPv2
+from jimgw.single_event.waveform import RippleIMRPhenomPv2, RippleIMRPhenomD
 from jimgw.transforms import BoundToUnbound
 from jimgw.single_event.transforms import (
     SkyFrameToDetectorFrameSkyPositionTransform,
@@ -53,7 +53,7 @@ def run_pe(args: argparse.Namespace,
         
     # Fetch bilby_pipe DataDump
     print(f"Fetching bilby_pipe DataDump for event {args.event_id}")
-    file = os.listdir("../bilby_runs/outdir/{}/data".format(args.event_id))[0]
+    file = os.listdir(f"../bilby_runs/outdir/{args.event_id}/data")[0]
     with open(f"../bilby_runs/outdir/{args.event_id}/data/{file}", "rb") as f:
         data_dump = pickle.load(f)
     Mc_lower = float(data_dump.priors_dict['chirp_mass'].minimum)
@@ -71,19 +71,35 @@ def run_pe(args: argparse.Namespace,
     duration = float(data_dump.interferometers[0].strain_data.time_array[-1] - data_dump.interferometers[0].strain_data.time_array[0])
     post_trigger = float(data_dump.meta_data['command_line_args']['post_trigger_duration'])
     gps = float(data_dump.trigger_time)
-    fmin: dict[str, float] = data_dump.meta_data['command_line_args']['minimum_frequency']
-    fmax: dict[str, float] = data_dump.meta_data['command_line_args']['maximum_frequency']
+    fmin: dict[str, float] = ast.literal_eval(data_dump.meta_data['command_line_args']['minimum_frequency'])
+    fmax: dict[str, float] = ast.literal_eval(data_dump.meta_data['command_line_args']['maximum_frequency'])
     
+    ifos_list_string = list(data_dump.interferometers.meta_data.keys())
+    
+    ifos_diff_fmin = []
     try:
-        fmin = float(np.max(list(ast.literal_eval(fmin).values())))
-    except AttributeError:
+        if all(fmin[ifos_list_string[0]] == fmin[ifos_list_string[i]] for i in range(1, len(ifos_list_string))):
+            print("fmin is the same for all ifos")
+            fmin = fmin[ifos_list_string[0]]
+        else:
+            print("fmin is different for different ifos")
+            ifos_diff_fmin = [ifo for ifo in ifos_list_string if fmin[ifo] != min(fmin.values())]
+            fmin = min(fmin.values())
+    except:
         fmin = float(fmin)
+
+    ifos_diff_fmax = []    
     try:
-        fmax = float(np.min(list(ast.literal_eval(fmax).values())))
-    except AttributeError:
+        if all(fmax[ifos_list_string[0]] == fmax[ifos_list_string[i]] for i in range(1, len(ifos_list_string))):
+            print("fmax is the same for all ifos")
+            fmax = fmax[ifos_list_string[0]]
+        else:
+            print("fmax is different for different ifos")
+            ifos_diff_fmax = [ifo for ifo in ifos_list_string if fmax[ifo] != max(fmax.values())]
+            fmax = max(fmax.values())
+    except:
         fmax = float(fmax)
-    
-    ifos_list_string = data_dump.interferometers.meta_data.keys()
+
     
     if verbose:
         print("fmin:")
@@ -112,6 +128,13 @@ def run_pe(args: argparse.Namespace,
         ifos[i].frequencies = frequencies
         ifos[i].data = data
         ifos[i].psd = psd
+
+        if ifo_string in ifos_diff_fmin:
+            print(f"Setting frequencies below {fmin} to inf for {ifo_string}")
+            ifos[i].psd = jnp.where(frequencies < fmin, jnp.inf, ifos[i].psd)
+        if ifo_string in ifos_diff_fmax:
+            print(f"Setting frequencies above {fmax} to inf for {ifo_string}")
+            ifos[i].psd = jnp.where(frequencies > fmax, jnp.inf, ifos[i].psd)
         
         if verbose:
             print(f"Checking data for {ifo_string}")
@@ -129,7 +152,12 @@ def run_pe(args: argparse.Namespace,
         print(f"GPS: {gps}")
         print(f"Chirp mass: [{Mc_lower}, {Mc_upper}]")
     
-    waveform = RippleIMRPhenomPv2(f_ref=float(data_dump.meta_data['command_line_args']['reference_frequency']))
+    if args.event_id[-2:] == "_D":
+        print("Using IMRPhenomD waveform")
+        waveform = RippleIMRPhenomD(f_ref=float(data_dump.meta_data['command_line_args']['reference_frequency']))
+    else:
+        print("Using IMRPhenomPv2 waveform")
+        waveform = RippleIMRPhenomPv2(f_ref=float(data_dump.meta_data['command_line_args']['reference_frequency']))
 
     ###########################################
     ########## Set up priors ##################
@@ -145,8 +173,12 @@ def run_pe(args: argparse.Namespace,
     prior = prior + [Mc_prior, q_prior]
 
     # Spin prior
-    s1_prior = UniformSpherePrior(parameter_names=["s1"])
-    s2_prior = UniformSpherePrior(parameter_names=["s2"])
+    if args.event_id[-2:] == "_D":
+        s1_prior = UniformPrior(-0.99, 0.99, parameter_names=["s1_z"])
+        s2_prior = UniformPrior(-0.99, 0.99, parameter_names=["s2_z"])
+    else:
+        s1_prior = UniformSpherePrior(parameter_names=["s1"])
+        s2_prior = UniformSpherePrior(parameter_names=["s2"])
     iota_prior = SinePrior(parameter_names=["iota"])
 
     prior = prior + [
@@ -198,24 +230,35 @@ def run_pe(args: argparse.Namespace,
         SkyFrameToDetectorFrameSkyPositionTransform(gps_time=gps, ifos=ifos),
         BoundToUnbound(name_mapping = (["M_c"], ["M_c_unbounded"]), original_lower_bound=Mc_lower, original_upper_bound=Mc_upper),
         BoundToUnbound(name_mapping = (["q"], ["q_unbounded"]), original_lower_bound=q_min, original_upper_bound=q_max),
-        PeriodicTransform(name_mapping = (["periodic_1", "s1_phi"], ["s1_phi_base_x", "s1_phi_base_y"]), xmin=0.0, xmax=2 * jnp.pi),
-        PeriodicTransform(name_mapping = (["periodic_2", "s2_phi"], ["s2_phi_base_x", "s2_phi_base_y"]), xmin=0.0, xmax=2 * jnp.pi),
         BoundToUnbound(name_mapping = (["iota"], ["iota_unbounded"]) , original_lower_bound=0.0, original_upper_bound=jnp.pi),
-        BoundToUnbound(name_mapping = (["s1_theta"], ["s1_theta_unbounded"]) , original_lower_bound=0.0, original_upper_bound=jnp.pi),
-        BoundToUnbound(name_mapping = (["s2_theta"], ["s2_theta_unbounded"]) , original_lower_bound=0.0, original_upper_bound=jnp.pi),
-        BoundToUnbound(name_mapping = (["s1_mag"], ["s1_mag_unbounded"]) , original_lower_bound=0.0, original_upper_bound=0.99),
-        BoundToUnbound(name_mapping = (["s2_mag"], ["s2_mag_unbounded"]) , original_lower_bound=0.0, original_upper_bound=0.99),
         PeriodicTransform(name_mapping = (["periodic_3", "psi"], ["psi_base_x", "psi_base_y"]), xmin=0.0, xmax=jnp.pi),
         PeriodicTransform(name_mapping = (["periodic_4", "phase_det"], ["phase_det_x", "phase_det_y"]), xmin=0.0, xmax=2 * jnp.pi),
         BoundToUnbound(name_mapping = (["zenith"], ["zenith_unbounded"]), original_lower_bound=0.0, original_upper_bound=jnp.pi),
         PeriodicTransform(name_mapping = (["periodic_5", "azimuth"], ["azimuth_x", "azimuth_y"]), xmin=0.0, xmax=2 * jnp.pi),
     ]
+    if args.event_id[-2:] == "_D":
+        sample_transforms = sample_transforms + [
+            BoundToUnbound(name_mapping = (["s1_z"], ["s1_z_unbounded"]), original_lower_bound=-0.99, original_upper_bound=0.99),
+            BoundToUnbound(name_mapping = (["s2_z"], ["s2_z_unbounded"]), original_lower_bound=-0.99, original_upper_bound=0.99),
+        ]
+    else:
+        sample_transforms = sample_transforms + [
+            PeriodicTransform(name_mapping = (["periodic_1", "s1_phi"], ["s1_phi_base_x", "s1_phi_base_y"]), xmin=0.0, xmax=2 * jnp.pi),
+            PeriodicTransform(name_mapping = (["periodic_2", "s2_phi"], ["s2_phi_base_x", "s2_phi_base_y"]), xmin=0.0, xmax=2 * jnp.pi),
+            BoundToUnbound(name_mapping = (["s1_theta"], ["s1_theta_unbounded"]) , original_lower_bound=0.0, original_upper_bound=jnp.pi),
+            BoundToUnbound(name_mapping = (["s2_theta"], ["s2_theta_unbounded"]) , original_lower_bound=0.0, original_upper_bound=jnp.pi),
+            BoundToUnbound(name_mapping = (["s1_mag"], ["s1_mag_unbounded"]) , original_lower_bound=0.0, original_upper_bound=0.99),
+            BoundToUnbound(name_mapping = (["s2_mag"], ["s2_mag_unbounded"]) , original_lower_bound=0.0, original_upper_bound=0.99),
+        ]
 
     likelihood_transforms = [
         MassRatioToSymmetricMassRatioTransform,
-        SphereSpinToCartesianSpinTransform("s1"),
-        SphereSpinToCartesianSpinTransform("s2"),
     ]
+    if args.event_id[-2:] != "_D":
+        likelihood_transforms = likelihood_transforms + [
+            SphereSpinToCartesianSpinTransform("s1"),
+            SphereSpinToCartesianSpinTransform("s2"),
+        ]
 
     # likelihood = TransientLikelihoodFD(
     #     ifos, waveform=waveform, trigger_time=gps, duration=duration, post_trigger_duration=post_trigger
@@ -239,15 +282,16 @@ def run_pe(args: argparse.Namespace,
 
     # Adam_optimizer = optimization_Adam(n_steps=3000, learning_rate=0.01, noise_level=1)
 
-    import optax
+    # import optax
 
     n_loop_training = 100
     n_epochs = 10
-    total_epochs = n_epochs * n_loop_training
-    start = total_epochs // 10
-    learning_rate = optax.polynomial_schedule(
-        1e-3, 1e-4, 4.0, total_epochs - start, transition_begin=start
-    )
+    # total_epochs = n_epochs * n_loop_training
+    # start = total_epochs // 10
+    # learning_rate = optax.polynomial_schedule(
+    #     1e-3, 1e-4, 4.0, total_epochs - start, transition_begin=start
+    # )
+    learning_rate = 1e-3
 
     jim = Jim(
         likelihood,
@@ -273,31 +317,38 @@ def run_pe(args: argparse.Namespace,
         # strategies=[Adam_optimizer,"default"],
     )
 
-    rng_key = jax.random.PRNGKey(1234)
+    rng_key = jax.random.PRNGKey(123)
     jim.sample(rng_key)
     jim.print_summary()
-    
-    # Postprocessing comes here
-    samples = jim.get_samples()
-    jnp.savez(os.path.join(args.outdir, args.event_id, "samples.npz"), **samples)
-    result = jim.sampler.get_sampler_state(training=False)
-    jnp.savez(os.path.join(args.outdir, args.event_id, "result.npz"), **result)
 
     total_time_end = time.time()
     print(f"Time taken: {total_time_end - total_time_start} seconds = {(total_time_end - total_time_start) / 60} minutes")
+    
+    # Postprocessing comes here
+    samples = jim.get_samples()
+    downsample_indices = np.random.choice(samples[list(samples.keys())[0]].shape[0], 5000)
+    samples = {key: samples[key][downsample_indices] for key in samples.keys()}
+    jnp.savez(os.path.join(args.outdir, args.event_id, "samples.npz"), **samples)
+    log_prob = jim.sampler.get_sampler_state(training=False)['log_prob'].reshape(-1)[downsample_indices]
+    log_prior = jax.vmap(prior.log_prob)(samples)[downsample_indices]
+    jnp.savez(os.path.join(args.outdir, args.event_id, "result.npz"), log_prior=log_prior, log_prob=log_prob)
+    rng_key, subkey = jax.random.split(rng_key)
+    nf_samples = np.array(jim.sampler.sample_flow(subkey, 5000))
+    nf_samples = jax.vmap(jim.add_name)(nf_samples)
+    for transform in reversed(sample_transforms):
+        nf_samples = jax.vmap(transform.backward)(nf_samples)
+    jnp.savez(os.path.join(args.outdir, args.event_id, "nf_samples.npz"), **nf_samples)
 
-    out_train = jim.sampler.get_sampler_state(training=True)
-
-    import corner
+    # Plotting
     import matplotlib.pyplot as plt
+    
+    out_train = jim.sampler.get_sampler_state(training=True)
 
     chains = np.array(out_train["chains"])
     global_accs = np.array(out_train["global_accs"])
     local_accs = np.array(out_train["local_accs"])
     loss_vals = np.array(out_train["loss_vals"])
-    rng_key, subkey = jax.random.split(rng_key)
-    nf_samples = np.array(jim.sampler.sample_flow(subkey, 3000))
-
+    
     # Plot 2 chains in the plane of 2 coordinates for first visual check
     axs = [plt.subplot(2, 2, i + 1) for i in range(4)]
     plt.sca(axs[0])
@@ -325,18 +376,18 @@ def run_pe(args: argparse.Namespace,
     plt.tight_layout()
     plt.savefig(f"{args.outdir}/{args.event_id}/training.jpg")
 
-    # Plot all chains
-    n_dim = chains.shape[-1]
-    chains_downsample = chains.reshape(-1, n_dim)
-    chains_downsample = chains_downsample[::5]
-    figure = corner.corner(chains_downsample)
-    figure.suptitle("Visualize samples")
-    plt.savefig(f"{args.outdir}/{args.event_id}/chains_training.jpg")
+    # Plot log_prob vs chain index
+    log_prob = jim.sampler.get_sampler_state(training=False)['log_prob'] # (n_chains, n_samples)
+    plt.figure()
+    plt.plot(log_prob.mean(0))
+    mean = log_prob.mean(0)
+    std = log_prob.std(0)
+    plt.fill_between(np.arange(mean.shape[0]), mean - std, mean + std, alpha=0.3)
+    plt.xlabel("chain index")
+    plt.ylabel("log_prob")
+    plt.title("Production log_prob")
+    plt.savefig(f"{args.outdir}/{args.event_id}/log_prob.jpg")
 
-    # Plot Nf samples
-    figure = corner.corner(nf_samples)
-    figure.suptitle("Visualize NF samples")
-    plt.savefig(f"{args.outdir}/{args.event_id}/nf_samples.jpg")
 
 def main():
     parser = utils.get_parser()

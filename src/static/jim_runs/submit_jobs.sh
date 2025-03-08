@@ -25,14 +25,14 @@ mkdir -p slurm_scripts
 mkdir -p logs
 
 # Read the event IDs from the CSV file
-csv_file="/home/user/ckng/project/jim_GWTC3/event_status.csv"
+csv_file="../event_status.csv"
 gw_ids=$(awk -F, 'NR>1 {print $1}' $csv_file)
 
 # Loop over each GW event ID
 for gw_id in $gw_ids
 do
   # Define the result directory path
-  result_dir="/home/user/ckng/project/jim_GWTC3/jim_runs/outdir/${gw_id}"
+  result_dir="outdir/${gw_id}"
   
   # Check if the result directory contains any files
   if [ -d "$result_dir" ] && [ "$(find "$result_dir" -type f | wc -l)" -gt 0 ]; then
