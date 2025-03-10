@@ -208,16 +208,18 @@ def run_pe(args: argparse.Namespace,
     r_1_prior = RayleighPrior(1.0, parameter_names=["periodic_1"])
     r_2_prior = RayleighPrior(1.0, parameter_names=["periodic_2"])
     r_3_prior = RayleighPrior(1.0, parameter_names=["periodic_3"])
-    r_4_prior = RayleighPrior(1.0, parameter_names=["periodic_4"])
-    r_5_prior = RayleighPrior(1.0, parameter_names=["periodic_5"])
 
     prior = prior + [
         r_1_prior,
         r_2_prior,
         r_3_prior,
-        r_4_prior,
-        r_5_prior,
     ]
+
+    if args.event_id[-2:] != "_D":
+        prior = prior + [
+            RayleighPrior(1.0, parameter_names=["periodic_4"]),
+            RayleighPrior(1.0, parameter_names=["periodic_5"]),
+        ]
 
     prior = CombinePrior(prior)
 
@@ -231,10 +233,10 @@ def run_pe(args: argparse.Namespace,
         BoundToUnbound(name_mapping = (["M_c"], ["M_c_unbounded"]), original_lower_bound=Mc_lower, original_upper_bound=Mc_upper),
         BoundToUnbound(name_mapping = (["q"], ["q_unbounded"]), original_lower_bound=q_min, original_upper_bound=q_max),
         BoundToUnbound(name_mapping = (["iota"], ["iota_unbounded"]) , original_lower_bound=0.0, original_upper_bound=jnp.pi),
-        PeriodicTransform(name_mapping = (["periodic_3", "psi"], ["psi_base_x", "psi_base_y"]), xmin=0.0, xmax=jnp.pi),
-        PeriodicTransform(name_mapping = (["periodic_4", "phase_det"], ["phase_det_x", "phase_det_y"]), xmin=0.0, xmax=2 * jnp.pi),
+        PeriodicTransform(name_mapping = (["periodic_1", "psi"], ["psi_base_x", "psi_base_y"]), xmin=0.0, xmax=jnp.pi),
+        PeriodicTransform(name_mapping = (["periodic_2", "phase_det"], ["phase_det_x", "phase_det_y"]), xmin=0.0, xmax=2 * jnp.pi),
         BoundToUnbound(name_mapping = (["zenith"], ["zenith_unbounded"]), original_lower_bound=0.0, original_upper_bound=jnp.pi),
-        PeriodicTransform(name_mapping = (["periodic_5", "azimuth"], ["azimuth_x", "azimuth_y"]), xmin=0.0, xmax=2 * jnp.pi),
+        PeriodicTransform(name_mapping = (["periodic_3", "azimuth"], ["azimuth_x", "azimuth_y"]), xmin=0.0, xmax=2 * jnp.pi),
     ]
     if args.event_id[-2:] == "_D":
         sample_transforms = sample_transforms + [
@@ -243,8 +245,8 @@ def run_pe(args: argparse.Namespace,
         ]
     else:
         sample_transforms = sample_transforms + [
-            PeriodicTransform(name_mapping = (["periodic_1", "s1_phi"], ["s1_phi_base_x", "s1_phi_base_y"]), xmin=0.0, xmax=2 * jnp.pi),
-            PeriodicTransform(name_mapping = (["periodic_2", "s2_phi"], ["s2_phi_base_x", "s2_phi_base_y"]), xmin=0.0, xmax=2 * jnp.pi),
+            PeriodicTransform(name_mapping = (["periodic_4", "s1_phi"], ["s1_phi_base_x", "s1_phi_base_y"]), xmin=0.0, xmax=2 * jnp.pi),
+            PeriodicTransform(name_mapping = (["periodic_5", "s2_phi"], ["s2_phi_base_x", "s2_phi_base_y"]), xmin=0.0, xmax=2 * jnp.pi),
             BoundToUnbound(name_mapping = (["s1_theta"], ["s1_theta_unbounded"]) , original_lower_bound=0.0, original_upper_bound=jnp.pi),
             BoundToUnbound(name_mapping = (["s2_theta"], ["s2_theta_unbounded"]) , original_lower_bound=0.0, original_upper_bound=jnp.pi),
             BoundToUnbound(name_mapping = (["s1_mag"], ["s1_mag_unbounded"]) , original_lower_bound=0.0, original_upper_bound=0.99),
