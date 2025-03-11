@@ -28,21 +28,32 @@ for event in events:
             samples_jim = []
             for key in keys:
                 samples_jim.append(result_jim[key])
-            log_posterior = jnp.load(paths.static/f'jim_runs/outdir/{event}/result.npz')['log_prob']
-            log_prior = jnp.load(paths.static/f'jim_runs/outdir/{event}/result.npz')['log_prior']
+            try:
+                log_posterior = jnp.load(paths.static/f'jim_runs/outdir/{event}/result.npz')['log_prob']
+                log_prior = jnp.load(paths.static/f'jim_runs/outdir/{event}/result.npz')['log_prior']
+            except:
+                try:
+                    log_posterior = jnp.load(paths.static/f'jim_runs/outdir/{event}/result.npz')['log_prob'].reshape(-1)
+                    log_prior = jnp.load(paths.static/f'jim_runs/outdir/{event}/log_prior.npz')['arr_0']
+                except:
+                    log_posterior = jnp.load(paths.static/f'jim_runs/outdir/{event}/result.npz')['log_prob'].reshape(-1)
+                    log_prior = jnp.load(paths.static/f'jim_runs/outdir/{event}/log_prior.npz')['log_prior']
             samples_jim.append(log_posterior-log_prior)
             samples_jim = np.array(samples_jim).T
             if len(samples_jim) > n_samples:
                 samples_jim = samples_jim[np.random.choice(samples_jim.shape[0], n_samples), :]
 
             # Load NF samples from jim
-            result_jim_nf = jnp.load(paths.static/f'jim_runs/outdir/{event}/nf_samples.npz')
-            samples_jim_nf = []
-            for key in keys:
-                samples_jim_nf.append(result_jim_nf[key])
-            samples_jim_nf = np.array(samples_jim_nf).T
-            if len(samples_jim_nf) > n_samples:
-                samples_jim_nf = samples_jim_nf[np.random.choice(samples_jim_nf.shape[0], n_samples), :]
+            try:
+                result_jim_nf = jnp.load(paths.static/f'jim_runs/outdir/{event}/nf_samples.npz')
+                samples_jim_nf = []
+                for key in keys:
+                    samples_jim_nf.append(result_jim_nf[key])
+                samples_jim_nf = np.array(samples_jim_nf).T
+                if len(samples_jim_nf) > n_samples:
+                    samples_jim_nf = samples_jim_nf[np.random.choice(samples_jim_nf.shape[0], n_samples), :]
+            except:
+                pass
 
             # Load samples from bilby
             files = os.listdir(paths.static/f'bilby_runs/outdir/{event}/final_result')
@@ -75,12 +86,15 @@ for event in events:
             samples_bilby = np.array(samples_bilby).T
 
             # Plot
-            fig_1 = corner(samples_jim[:,:-1], labels=keys, color='blue', hist_kwargs={'density': True})
-            corner(samples_jim_nf, labels=keys, fig=fig_1, color='green', hist_kwargs={'density': True})
-            corner(samples_bilby[:,:-1], labels=keys, fig=fig_1, color='red', hist_kwargs={'density': True})
-            fig_1.legend(['jim', 'jim_nf', 'bilby'], loc='right', fontsize=20)
-            fig_1.savefig(paths.src/f'figures/{event}_nf.jpg')
-            plt.close(fig_1)
+            try:
+                fig_1 = corner(samples_jim[:,:-1], labels=keys, color='blue', hist_kwargs={'density': True})
+                corner(samples_jim_nf, labels=keys, fig=fig_1, color='green', hist_kwargs={'density': True})
+                corner(samples_bilby[:,:-1], labels=keys, fig=fig_1, color='red', hist_kwargs={'density': True})
+                fig_1.legend(['jim', 'jim_nf', 'bilby'], loc='right', fontsize=20)
+                fig_1.savefig(paths.src/f'figures/{event}_nf.jpg')
+                plt.close(fig_1)
+            except:
+                pass
 
             keys.append('logL')
             fig_2 = corner(samples_jim, labels=keys, color='blue', hist_kwargs={'density': True})
