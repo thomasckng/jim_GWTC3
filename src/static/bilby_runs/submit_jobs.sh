@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Activate the conda environment
-source /home/thomas.ng/.bashrc
+source ~/.bashrc
 conda activate /home/sylvia.biscoveanu/.conda/envs/bilby_o4review_230314/
 
 # Read the event IDs from the CSV file

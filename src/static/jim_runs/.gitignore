@@ -1,1 +1,4 @@
 outdir*/
+slurm_scripts/
+logs/
+__pycache__/
