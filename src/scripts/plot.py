@@ -11,6 +11,8 @@ import paths
 csv = pd.read_csv(paths.static/'event_status.csv')
 events = csv['Event'].values
 
+os.makedirs(paths.src/'figures', exist_ok=True)
+
 for event in events:
     try:
         if not os.path.exists(paths.src/f'figures/{event}.jpg'):
