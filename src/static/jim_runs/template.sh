@@ -16,4 +16,4 @@ conda activate ~/.conda/envs/jim
 nvidia-smi
 
 # Run the script
-python run.py --event-id $GW_ID --outdir outdir
+python run.py --event-id $GW_ID --outdir default

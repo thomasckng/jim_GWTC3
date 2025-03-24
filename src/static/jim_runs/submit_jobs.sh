@@ -2,20 +2,27 @@
 
 # Define usage
 usage() {
-    echo "Usage: $0 [-n] (use -n to enable node preference for a/c nodes)"
+    echo "Usage: $0 [-n] [-o outdir] (use -n to enable node preference for a/c nodes, -o to specify output directory)"
     exit 1
 }
 
-# Default to no node preference
+# Default to no node preference and no outdir specified
 USE_NODE_PREFERENCE=false
+OUTDIR=""
 
 # Parse command line options
-while getopts "n" opt; do
+while getopts "no:" opt; do
     case $opt in
         n) USE_NODE_PREFERENCE=true ;;
+        o) OUTDIR=$OPTARG ;;
         ?) usage ;;
     esac
 done
+
+# Check if outdir is specified. If not, use "outdir" as the default.
+if [ -z "$OUTDIR" ]; then
+    OUTDIR="outdir"
+fi
 
 # Define the path to the template script
 template_file="template.sh"
@@ -32,7 +39,7 @@ gw_ids=$(awk -F, 'NR>1 {print $1}' $csv_file)
 for gw_id in $gw_ids
 do
   # Define the result directory path
-  result_dir="outdir/${gw_id}"
+  result_dir="$OUTDIR/$gw_id"
   
   # Check if the result directory contains any files
   if [ -d "$result_dir" ] && [ "$(find "$result_dir" -type f | wc -l)" -gt 0 ]; then
@@ -46,6 +53,9 @@ do
   # Replace the placeholder with the actual GW_ID
   sed -i "s/{{{GW_ID}}}/$gw_id/g" $new_script
 
+  # Replace the placeholder with the actual outdir
+  sed -i "s#default#$result_dir#g" $new_script
+
   # Make the script executable
   chmod +x $new_script
 
@@ -53,9 +63,9 @@ do
     # First try to find available c node
     AVAILABLE_NODE=$(sinfo -h -t idle -o "%n" | grep '^c' | head -n1)
     
-    # If no c node, try to find available a node
+    # If no c node, try to find available a node. Skip a2 nodes
     if [ -z "$AVAILABLE_NODE" ]; then
-      AVAILABLE_NODE=$(sinfo -h -t idle -o "%n" | grep '^a' | head -n1)
+      AVAILABLE_NODE=$(sinfo -h -t idle -o "%n" | grep '^a' | grep -v '^a2' | head -n1)
     fi
     
     # Submit the job to SLURM only if preferred node is available
