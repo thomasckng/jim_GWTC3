@@ -2,18 +2,16 @@
 
 # Define usage
 usage() {
-    echo "Usage: $0 [-n] [-o outdir] (use -n to enable node preference for a/c nodes, -o to specify output directory)"
+    echo "Usage: $0 [-o outdir] (use -o to specify output directory)"
     exit 1
 }
 
-# Default to no node preference and no outdir specified
-USE_NODE_PREFERENCE=false
+# Default to no outdir specified
 OUTDIR=""
 
 # Parse command line options
-while getopts "no:" opt; do
+while getopts "o:" opt; do
     case $opt in
-        n) USE_NODE_PREFERENCE=true ;;
         o) OUTDIR=$OPTARG ;;
         ?) usage ;;
     esac
@@ -59,27 +57,7 @@ do
   # Make the script executable
   chmod +x $new_script
 
-  if [ "$USE_NODE_PREFERENCE" = true ]; then
-    # First try to find available c node
-    AVAILABLE_NODE=$(sinfo -h -t idle -o "%n" | grep '^c' | head -n1)
-    
-    # If no c node, try to find available a node. Skip a2 nodes
-    if [ -z "$AVAILABLE_NODE" ]; then
-      AVAILABLE_NODE=$(sinfo -h -t idle -o "%n" | grep '^a' | grep -v '^a2' | head -n1)
-    fi
-    
-    # Submit the job to SLURM only if preferred node is available
-    if [ -n "$AVAILABLE_NODE" ]; then
-      sbatch --nodelist=$AVAILABLE_NODE $new_script
-      echo "Submitted job for $gw_id on node $AVAILABLE_NODE"
-      # Wait for 5 seconds before submitting the next job
-      sleep 5
-    else
-      echo "Skipping job for $gw_id - no a or c nodes available"
-    fi
-  else
-    # Submit without node preference
-    sbatch $new_script
-    echo "Submitted job for $gw_id without node preference"
-  fi
+  # Submit
+  sbatch $new_script
+  echo "Submitted job for $gw_id"
 done
