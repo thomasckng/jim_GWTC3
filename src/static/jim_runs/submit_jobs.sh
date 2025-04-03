@@ -37,7 +37,7 @@ gw_ids=$(awk -F, 'NR>1 {print $1}' $csv_file)
 for gw_id in $gw_ids
 do
   # Define the result directory path
-  result_dir="$OUTDIR/$gw_id"
+  result_dir="$OUTDIR"
   
   # Check if the result directory contains any files
   if [ -d "$result_dir" ] && [ "$(find "$result_dir" -type f | wc -l)" -gt 0 ]; then

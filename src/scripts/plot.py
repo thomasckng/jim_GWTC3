@@ -12,8 +12,13 @@ import sys
 csv = pd.read_csv(paths.static/'event_status.csv')
 events = csv['Event'].values
 
-jim_outdir = paths.static/f'jim_runs/outdir_{sys.argv[1]}'
-figure_outdir = paths.src/f'figures_{sys.argv[1]}'
+if len(sys.argv) < 2:
+    label = ''
+else:
+    label = f'_{sys.argv[1]}'
+
+jim_outdir = paths.static/f'jim_runs/outdir{label}'
+figure_outdir = paths.src/f'figures{label}'
 
 os.makedirs(figure_outdir, exist_ok=True)
 

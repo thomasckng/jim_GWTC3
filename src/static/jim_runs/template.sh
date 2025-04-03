@@ -1,7 +1,6 @@
 #!/bin/bash
 #Set job requirements
 #SBATCH --gpus=1
-#SBATCH --exclude=a2,b[1-8]
 #SBATCH --job-name={{{GW_ID}}}
 #SBATCH --output=logs/%x.out
 #SBATCH --error=logs/%x.err
