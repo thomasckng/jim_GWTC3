@@ -28,6 +28,7 @@ template_file="template.sh"
 # Create directories to store the SLURM scripts and logs
 mkdir -p slurm_scripts
 mkdir -p logs
+mkdir -p $OUTDIR
 
 # Read the event IDs from the CSV file
 csv_file="../event_status.csv"
