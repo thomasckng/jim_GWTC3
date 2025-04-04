@@ -267,21 +267,21 @@ def run_pe(args: argparse.Namespace,
             SphereSpinToCartesianSpinTransform("s2"),
         ]
 
-    # likelihood = TransientLikelihoodFD(
-    #     ifos, waveform=waveform, trigger_time=gps, duration=duration, post_trigger_duration=post_trigger
-    # )
+    likelihood = TransientLikelihoodFD(
+        ifos, waveform=waveform, trigger_time=gps, duration=duration, post_trigger_duration=post_trigger
+    )
     
-    likelihood = HeterodynedTransientLikelihoodFD(ifos, 
-                                                  waveform=waveform, 
-                                                  n_bins = 1_000, 
-                                                  trigger_time=gps, 
-                                                  duration=duration, 
-                                                  post_trigger_duration=post_trigger, 
-                                                  prior=prior, 
-                                                  sample_transforms=sample_transforms,
-                                                  likelihood_transforms=likelihood_transforms,
-                                                  popsize=10,
-                                                  n_steps=50)
+    # likelihood = HeterodynedTransientLikelihoodFD(ifos, 
+    #                                               waveform=waveform, 
+    #                                               n_bins = 1_000, 
+    #                                               trigger_time=gps, 
+    #                                               duration=duration, 
+    #                                               post_trigger_duration=post_trigger, 
+    #                                               prior=prior, 
+    #                                               sample_transforms=sample_transforms,
+    #                                               likelihood_transforms=likelihood_transforms,
+    #                                               popsize=10,
+    #                                               n_steps=50)
 
 
     mass_matrix = jnp.eye(prior.n_dim)

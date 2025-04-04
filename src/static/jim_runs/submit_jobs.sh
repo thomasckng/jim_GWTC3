@@ -2,17 +2,19 @@
 
 # Define usage
 usage() {
-    echo "Usage: $0 [-o outdir] (use -o to specify output directory)"
+    echo "Usage: $0 [-o outdir] [-e] (use -o to specify output directory, -e to exclude nodes b[1-8])"
     exit 1
 }
 
-# Default to no outdir specified
+# Default to no outdir specified and no exclude option
 OUTDIR=""
+EXCLUDE_NODES=false
 
 # Parse command line options
-while getopts "o:" opt; do
+while getopts "o:e" opt; do
     case $opt in
         o) OUTDIR=$OPTARG ;;
+        e) EXCLUDE_NODES=true ;;
         ?) usage ;;
     esac
 done
@@ -58,7 +60,11 @@ do
   # Make the script executable
   chmod +x $new_script
 
-  # Submit
-  sbatch $new_script
+  # Submit with or without the exclude option
+  if [ "$EXCLUDE_NODES" = true ]; then
+    sbatch --exclude=b[1-8] $new_script
+  else
+    sbatch $new_script
+  fi
   echo "Submitted job for $gw_id"
 done
