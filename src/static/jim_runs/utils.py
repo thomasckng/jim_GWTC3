@@ -4,21 +4,25 @@ def get_parser(**kwargs):
     add_help = kwargs.get("add_help", True)
 
     parser = argparse.ArgumentParser(
-        description="Perform an injection recovery.",
+        description="Perform PE on real events",
         add_help=add_help,
     )
     
-    ### Required arguments to run the PE
     parser.add_argument(
         "--outdir",
         type=str,
         default="./outdir/",
-        help="Output directory for the injection.",
+        help="Output directory",
     )
     parser.add_argument(
         "--event-id",
         type=str,
-        help="ID of the event on which we run PE",
+        help="ID of the event",
+    )
+    parser.add_argument(
+        "-r", "--relative-binning",
+        action="store_true",
+        help="Enable relative binning",
     )
     
     return parser

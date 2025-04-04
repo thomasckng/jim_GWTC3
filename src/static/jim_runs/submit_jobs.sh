@@ -2,19 +2,21 @@
 
 # Define usage
 usage() {
-    echo "Usage: $0 [-o outdir] [-e] (use -o to specify output directory, -e to exclude nodes b[1-8])"
+    echo "Usage: $0 [-o outdir] [-e] [-r] (use -o to specify output directory, -e to exclude nodes b[1-8], -r to use relative binning)"
     exit 1
 }
 
-# Default to no outdir specified and no exclude option
+# Default to no outdir specified, no exclude option, and no -r option
 OUTDIR=""
 EXCLUDE_NODES=false
+RELATIVE_BINNING=false
 
 # Parse command line options
-while getopts "o:e" opt; do
+while getopts "o:er" opt; do
     case $opt in
         o) OUTDIR=$OPTARG ;;
         e) EXCLUDE_NODES=true ;;
+        r) RELATIVE_BINNING=true ;;
         ?) usage ;;
     esac
 done
@@ -42,8 +44,13 @@ do
   # Define the result directory path
   result_dir="$OUTDIR"
   
+  # Append " -r" to result_dir if -r option is provided
+  if [ "$RELATIVE_BINNING" = true ]; then
+    result_dir="$result_dir -r"
+  fi
+  
   # Check if the result directory contains any files
-  if [ -d "$result_dir" ] && [ "$(find "$result_dir" -type f | wc -l)" -gt 0 ]; then
+  if [ -d "$OUTDIR" ] && [ "$(find "$OUTDIR" -type f | wc -l)" -gt 0 ]; then
     continue
   fi
   
