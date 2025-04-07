@@ -1,16 +1,16 @@
 Event,Comparison,Remark
 GW150914,good,
 GW151012,good,
-GW151226,good,extrinsic weighting
+GW151226,good,
 GW170104,good,
-GW170608,good,extrinsic weighting
+GW170608,ok,jim better?
 GW170729,good,
 GW170809,good,
 GW170814,good,
-GW170818,good,time shift
+GW170818,ok,time shift
 GW170823,good,
 GW190408_181802,good,
-GW190412,good,extrinsic weighting
+GW190412,ok,time shift
 GW190413_052954,good,
 GW190413_134308,good,
 GW190421_213856,good,
@@ -20,54 +20,54 @@ GW190513_205428,good,
 GW190517_055101,good,
 GW190519_153544,good,
 GW190521,good,
-GW190521_074359,good,
+GW190521_074359,ok,time shift
 GW190527_092055,good,
 GW190602_175927,good,
-GW190620_030421,good,extrinsic weighting
+GW190620_030421,good,
 GW190630_185205,good,
-GW190701_203306,good,time shift
+GW190701_203306,ok,time shift
 GW190706_222641,good,
-GW190707_093326,good,extrinsic weighting
-GW190708_232457,good,extrinsic weighting
+GW190707_093326,ok,extrinsic weighting
+GW190708_232457,ok,extrinsic weighting
 GW190719_215514,good,
 GW190720_000836,good,
-GW190725_174728,good,extrinsic weighting
-GW190727_060333,good,extrinsic weighting & spin
+GW190725_174728,bad,extrinsic weighting
+GW190727_060333,ok,extrinsic weighting & spin
 GW190728_064510,good,
 GW190731_140936,good,
 GW190803_022701,good,
 GW190805_211137,good,extrinsic weighting
-GW190814,good,time shift
-GW190828_063405,good,mode collapse?
+GW190814,ok,time shift
+GW190828_063405,good,
 GW190828_065509,good,
-GW190910_112807,good,
+GW190910_112807,ok,time shift
 GW190915_235702,good,
 GW190917_114630,good,mass ratio & spin
 GW190924_021846,good,
 GW190925_232845,good,
 GW190929_012149,good,
 GW190930_133541,good,
-GW191103_012549,good,extrinsic weighting
+GW191103_012549,good,
 GW191105_143521,good,
-GW191109_010717,good,all parameters
-GW191109_010717_D,good,extrinsic weighting
-GW191127_050227,good,extrinsic weighting
-GW191129_134029,good,extrinsic weighting
-GW191204_171526,good,extrinsic weighting
-GW191215_223052,good,mode collapse
+GW191109_010717,ok,iota
+GW191109_010717_D,good,
+GW191127_050227,good,
+GW191129_134029,good,
+GW191204_171526,ok,jim better?
+GW191215_223052,good,
 GW191216_213338,good,
 GW191222_033537,good,extrinsic weighting
 GW191230_180458,good,
-GW200112_155838,good,
+GW200112_155838,bad,missing mode
 GW200128_022011,good,extrinsic weighting
-GW200129_065458,good,
+GW200129_065458,tragic,extrinsic parameters
 GW200202_154313,good,
-GW200208_130117,good,wrong extrinsic parameters
+GW200208_130117,good,
 GW200209_085452,good,
 GW200216_220804,good,
 GW200219_094415,good,
-GW200224_222234,good,time shift
+GW200224_222234,ok,time shift
 GW200225_060421,good,
 GW200302_015811,good,
-GW200311_115853,good,
+GW200311_115853,ok,time shift
 GW200316_215756,good,
