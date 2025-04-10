@@ -274,10 +274,10 @@ def run_pe(args: argparse.Namespace, verbose: bool = False):
 
     # Likelihood transforms
     likelihood_transforms = [
-        MassRatioToSymmetricMassRatioTransform,
         # SphereSpinToCartesianSpinTransform("s1"),
         # SphereSpinToCartesianSpinTransform("s2"),
         SpinAnglesToCartesianSpinTransform(freq_ref=ref_freq),
+        MassRatioToSymmetricMassRatioTransform,
     ]
 
     # -------------------------------
