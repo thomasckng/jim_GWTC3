@@ -47,17 +47,16 @@ def process_event(event):
             return (event, None)
 
         print(f'Processing {event}')
-        # Determine keys based on event type
-        keys = ['M_c', 'q', 'd_L', 'iota', 'ra', 'dec', 't_c', 'psi', 'phase_c']
-        if event.endswith('_D'):
-            keys += ['s1_z', 's2_z']
-        else:
-            keys += ['s1_mag', 's1_theta', 's1_phi', 's2_mag', 's2_theta', 's2_phi']
 
         # Load Jim samples
         jim_samples_file = paths.static / f'{jim_outdir}/{event}/samples.npz'
         result_jim = jnp.load(jim_samples_file)
-        samples_jim_list = [result_jim[k] for k in keys]
+        try:
+            keys = ['M_c', 'q', 's1_mag', 's1_theta', 's1_phi', 's2_mag', 's2_theta', 's2_phi', 'iota', 'd_L', 'ra', 'dec', 't_c', 'phase_c', 'psi']
+            samples_jim_list = [result_jim[k] for k in keys]
+        except KeyError:
+            keys = ['M_c', 'q', 'a_1', 'a_2', 'tilt_1', 'tilt_2', 'phi_jl', 'phi_12', 'theta_jn', 'd_L', 'ra', 'dec', 't_c', 'phase_c', 'psi']
+            samples_jim_list = [result_jim[k] for k in keys]
 
         # Load Jim log-probabilities
         jim_result_file = paths.static / f'{jim_outdir}/{event}/result.npz'
