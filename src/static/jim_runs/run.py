@@ -349,8 +349,15 @@ def run_pe(args: argparse.Namespace, verbose: bool = False):
     samples = {key: samples[key][downsample_indices] for key in samples.keys()}
     np.savez(os.path.join(event_outdir, "samples.npz"), **samples)
 
-    log_prob = jim.sampler.get_sampler_state(training=False)['log_prob'].reshape(-1)[downsample_indices]
-    log_prior = jax.vmap(prior.log_prob)(samples)[downsample_indices]
+    log_prob = jim.sampler.get_sampler_state(training=False)['log_prob'].reshape(-1)[downsample_indices] # log_prob in sampling space
+    log_jacobian = jnp.zeros(sum(downsample_indices))
+    for transform in sample_transforms:
+        _, log_jac = jax.vmap(transform.transform)(samples[downsample_indices]) # samples in prior space
+        log_jacobian += log_jac
+    log_prob -= log_jacobian  # log_prob in prior space
+
+    log_prior = jax.vmap(prior.log_prob)(samples[downsample_indices]) # log_prob in prior space
+
     np.savez(os.path.join(event_outdir, "result.npz"), log_prior=log_prior, log_prob=log_prob)
 
     # Sample from the flow and reverse transforms for final samples
