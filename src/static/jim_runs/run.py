@@ -10,9 +10,6 @@ import jax.numpy as jnp
 # Import custom argument parsing from utils
 import utils
 
-# Set JAX to use 64-bit precision
-jax.config.update("jax_enable_x64", True)
-
 # Import modules from jimgw
 from jimgw.core.jim import Jim
 from jimgw.core.prior import (
@@ -28,7 +25,10 @@ from jimgw.core.prior import (
 from jimgw.core.transforms import PeriodicTransform, BoundToUnbound
 from jimgw.core.single_event.detector import detector_preset
 from jimgw.core.single_event.data import Data, PowerSpectrum
-from jimgw.core.single_event.likelihood import TransientLikelihoodFD, HeterodynedTransientLikelihoodFD
+from jimgw.core.single_event.likelihood import (
+    TransientLikelihoodFD,
+    HeterodynedTransientLikelihoodFD,
+)
 from jimgw.core.single_event.waveform import RippleIMRPhenomPv2
 from jimgw.core.single_event.transforms import (
     SkyFrameToDetectorFrameSkyPositionTransform,
@@ -39,6 +39,10 @@ from jimgw.core.single_event.transforms import (
     SphereSpinToCartesianSpinTransform,
     # SpinAnglesToCartesianSpinTransform,
 )
+
+# Set JAX to use 64-bit precision
+jax.config.update("jax_enable_x64", True)
+
 
 def run_pe(args: argparse.Namespace):
     """
@@ -68,11 +72,11 @@ def run_pe(args: argparse.Namespace):
         bilby_data_dump = pickle.load(f)
 
     # Extract chirp mass bounds and luminosity distance upper bound from priors
-    Mc_lower = float(bilby_data_dump.priors_dict['chirp_mass'].minimum)
-    Mc_upper = float(bilby_data_dump.priors_dict['chirp_mass'].maximum)
+    Mc_lower = float(bilby_data_dump.priors_dict["chirp_mass"].minimum)
+    Mc_upper = float(bilby_data_dump.priors_dict["chirp_mass"].maximum)
     print(f"Setting the Mc bounds to be {Mc_lower} and {Mc_upper}")
 
-    dL_upper = float(bilby_data_dump.priors_dict['luminosity_distance'].maximum)
+    dL_upper = float(bilby_data_dump.priors_dict["luminosity_distance"].maximum)
     print(f"Setting dL upper bound to be {dL_upper}")
 
     # -------------------------------
@@ -86,8 +90,6 @@ def run_pe(args: argparse.Namespace):
     fmax = bilby_ifos[0].maximum_frequency
 
     for ifo_b, ifo_j in zip(bilby_ifos, jim_ifos):
-        delta_t = ifo_b.time_array[1] - ifo_b.time_array[0]
-
         # This line trigger the freq_domain_strain calculation
         # which then trigger the window factor computation
         # which is then multiply to the bilby psd_array as final output.
@@ -98,23 +100,22 @@ def run_pe(args: argparse.Namespace):
             fd=ifo_b.frequency_domain_strain,
             frequencies=ifo_b.frequency_array,
             epoch=ifo_b.start_time,
-            name=ifo_b.name + '_fd_data',)
-
+            name=ifo_b.name + "_fd_data",
+        )
 
         jim_psd = PowerSpectrum(
             values=ifo_b.power_spectral_density_array,
             frequencies=ifo_b.frequency_array,
-            name=ifo_b.name + '_psd',
+            name=ifo_b.name + "_psd",
         )
         ifo_j.set_data(jim_data)
         ifo_j.set_psd(jim_psd)
 
-
     # -------------------------------
     # Select waveform based on event ID
     # -------------------------------
-    ref_freq = float(bilby_data_dump.meta_data['command_line_args']['reference_frequency'])
-    
+    ref_freq = float(bilby_data_dump.meta_data["command_line_args"]["reference_frequency"])
+
     print("Using IMRPhenomPv2 waveform")
     waveform = RippleIMRPhenomPv2(f_ref=ref_freq)
 
@@ -222,16 +223,24 @@ def run_pe(args: argparse.Namespace):
     if args.relative_binning:
         print("Using relative binning")
         likelihood = HeterodynedTransientLikelihoodFD(
-            jim_ifos, waveform=waveform, n_bins=1_000, trigger_time=gps,
-            prior=prior, sample_transforms=sample_transforms,
+            jim_ifos,
+            waveform=waveform,
+            n_bins=1_000,
+            trigger_time=gps,
+            prior=prior,
+            sample_transforms=sample_transforms,
             likelihood_transforms=likelihood_transforms,
-            f_min=fmin, f_max=fmax
+            f_min=fmin,
+            f_max=fmax,
         )
     else:
         print("Using normal likelihood")
         likelihood = TransientLikelihoodFD(
-            jim_ifos, waveform=waveform, trigger_time=gps,
-            f_min=fmin, f_max=fmax,
+            jim_ifos,
+            waveform=waveform,
+            trigger_time=gps,
+            f_min=fmin,
+            f_max=fmax,
         )
 
     # -------------------------------
@@ -290,21 +299,24 @@ def run_pe(args: argparse.Namespace):
     global_acceptance_prod = resources["global_accs_production"].data
     chains = resources["positions_production"].data
 
-    jnp.savez(f"{event_outdir}/results.npz",
-            log_prob_training=logprob_train,
-            log_prob_production=logprob_prod,
-            local_accs_training=local_acceptance_train,
-            local_accs_production=local_acceptance_prod,
-            global_accs_training=global_acceptance_train,
-            global_accs_production=global_acceptance_prod,
-            chains=chains,
-            samples=samples,
-            log_prior=jim_prior,
-            )
+    jnp.savez(
+        f"{event_outdir}/results.npz",
+        log_prob_training=logprob_train,
+        log_prob_production=logprob_prod,
+        local_accs_training=local_acceptance_train,
+        local_accs_production=local_acceptance_prod,
+        global_accs_training=global_acceptance_train,
+        global_accs_production=global_acceptance_prod,
+        chains=chains,
+        samples=samples,
+        log_prior=jim_prior,
+    )
+
 
 def main():
     """Entry point: parse arguments and run the parameter estimation."""
     run_pe(utils.get_parser().parse_args())
+
 
 if __name__ == "__main__":
     main()
