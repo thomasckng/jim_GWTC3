@@ -86,8 +86,16 @@ def run_pe(args: argparse.Namespace):
     bilby_ifos = bilby_data_dump.interferometers
     jim_ifos = [detector_preset[ifo.name] for ifo in bilby_ifos]
     gps = bilby_data_dump.trigger_time
-    fmin = bilby_ifos[0].minimum_frequency
-    fmax = bilby_ifos[0].maximum_frequency
+    fmins = [ifo.minimum_frequency for ifo in bilby_ifos]
+    fmaxs = [ifo.maximum_frequency for ifo in bilby_ifos]
+
+    if not all(f == fmins[0] for f in fmins):
+        print("Warning: Not all ifos have the same minimum frequency. Using min(fmin).")
+    if not all(f == fmaxs[0] for f in fmaxs):
+        print("Warning: Not all ifos have the same maximum frequency. Using max(fmax).")
+
+    fmin = min(fmins)
+    fmax = max(fmaxs)
 
     for ifo_b, ifo_j in zip(bilby_ifos, jim_ifos):
         # This line trigger the freq_domain_strain calculation
