@@ -7,7 +7,7 @@
 
 # Initialize Conda
 source ~/.bashrc
-conda activate ~/.conda/envs/jim
+source /home/user/ckng/.venv/jim/bin/activate
 
 # Check the GPU model
 nvidia-smi
