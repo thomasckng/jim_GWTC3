@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 
+import jax
+
+# Set JAX to use 64-bit precision
+jax.config.update("jax_enable_x64", True)
+
 import os
 import time
 import pickle
 import argparse
-import jax
 import jax.numpy as jnp
 
 # Import custom argument parsing from utils
@@ -39,9 +43,6 @@ from jimgw.core.single_event.transforms import (
     SphereSpinToCartesianSpinTransform,
     # SpinAnglesToCartesianSpinTransform,
 )
-
-# Set JAX to use 64-bit precision
-jax.config.update("jax_enable_x64", True)
 
 
 def run_pe(args: argparse.Namespace):
