@@ -296,7 +296,12 @@ def run_pe(args: argparse.Namespace):
     # ---------------------------------
     samples = jim.get_samples()
     samples = {key: samples[key] for key in samples.keys()}
-    jim_prior = jax.vmap(prior.log_prob)(samples)
+    log_prior = jax.vmap(prior.log_prob)(samples)
+    log_jacobian = jnp.zeros(len(log_prior))
+    for transform in sample_transforms:
+        _, log_jac = jax.vmap(transform.transform)(samples) # samples in prior space
+        log_jacobian += log_jac
+    log_prior += log_jacobian  # log_prior in sampling space
 
     resources = jim.sampler.resources
     logprob_train = resources["log_prob_training"].data
@@ -317,7 +322,7 @@ def run_pe(args: argparse.Namespace):
         global_accs_production=global_acceptance_prod,
         chains=chains,
         samples=samples,
-        log_prior=jim_prior,
+        log_prior=log_prior,
     )
 
 
