@@ -69,7 +69,7 @@ def process_event(event):
         except KeyError:
             keys = ["M_c", "q", "a_1", "a_2", "tilt_1", "tilt_2", "phi_jl", "phi_12", "theta_jn", "d_L", "ra", "dec", "t_c", "phase_c", "psi"]
             samples_jim_list = [samples_dict[k] for k in keys]
-        log_prob = result_jim["log_prob_production"]
+        log_prob = result_jim["log_prob_production"].reshape(-1)
         log_prior = result_jim["log_prior"]
         samples_jim_list.append(log_prob - log_prior)
         samples_jim = np.array(samples_jim_list).T
@@ -106,12 +106,11 @@ def process_event(event):
             plt.close(fig)
         except Exception as e:
             print(f"Plot 2 error for {event}: {e}")
-
-        # Clean up
-        del result_jim, samples_jim, samples_bilby, df
+        del samples_dict, result_jim, log_prob, log_prior, samples_jim_list, res_bilby, df, bilby_list, samples_jim, samples_bilby
         gc.collect()
 
         return (event, "good")
+    
     except Exception as e:
         print(f"Error processing {event}: {e}")
         return (event, "error")
