@@ -69,10 +69,18 @@ def process_event(event):
         except KeyError:
             keys = ["M_c", "q", "a_1", "a_2", "tilt_1", "tilt_2", "phi_jl", "phi_12", "theta_jn", "d_L", "ra", "dec", "t_c", "phase_c", "psi"]
             samples_jim_list = [samples_dict[k] for k in keys]
+        del samples_dict
+        gc.collect()
         log_prob = result_jim["log_prob_production"].reshape(-1)
         log_prior = result_jim["log_prior"]
+        del result_jim
+        gc.collect()
         samples_jim_list.append(log_prob - log_prior)
+        del log_prob, log_prior
+        gc.collect()
         samples_jim = np.array(samples_jim_list).T
+        del samples_jim_list
+        gc.collect()
         if samples_jim.shape[0] > n_samples:
             idx = np.random.choice(samples_jim.shape[0], n_samples, replace=False)
             samples_jim = samples_jim[idx]
@@ -87,6 +95,8 @@ def process_event(event):
         res_bilby = CBCResult.from_hdf5(res_file)
         trigger_time = float(res_bilby.meta_data["command_line_args"]["trigger_time"])
         df = res_bilby.posterior
+        del res_bilby
+        gc.collect()
         df["geocent_time"] -= trigger_time
         if len(df) > n_samples:
             df = df.sample(n_samples)
@@ -94,7 +104,11 @@ def process_event(event):
             print(f"Warning: {event} has only {len(df)} samples")
         bilby_list = [df[key_mapping.get(k, k)].values for k in keys]
         bilby_list.append(df["log_likelihood"].values)
+        del df
+        gc.collect()
         samples_bilby = np.array(bilby_list).T
+        del bilby_list
+        gc.collect()
 
         # Plot comparison with logL
         try:
@@ -106,7 +120,7 @@ def process_event(event):
             plt.close(fig)
         except Exception as e:
             print(f"Plot 2 error for {event}: {e}")
-        del samples_dict, result_jim, log_prob, log_prior, samples_jim_list, res_bilby, df, bilby_list, samples_jim, samples_bilby
+        del samples_jim, samples_bilby
         gc.collect()
 
         return (event, "good")

@@ -154,8 +154,10 @@ def run_pe(args: argparse.Namespace):
     # prior += [theta_jn_prior, phi_jl_prior, tilt_1_prior, tilt_2_prior, phi_12_prior, a_1_prior, a_2_prior]
 
     # Extrinsic priors
-    dL_prior = SimpleConstrainedPrior([PowerLawPrior(1.0, dL_upper, 2.0, parameter_names=["d_L"])])
-    t_c_prior = SimpleConstrainedPrior([UniformPrior(-0.1, 0.1, parameter_names=["t_c"])])
+    # dL_prior = SimpleConstrainedPrior([PowerLawPrior(1.0, dL_upper, 2.0, parameter_names=["d_L"])])
+    dL_prior = PowerLawPrior(1.0, dL_upper, 2.0, parameter_names=["d_L"])
+    # t_c_prior = SimpleConstrainedPrior([UniformPrior(-0.1, 0.1, parameter_names=["t_c"])])
+    t_c_prior = UniformPrior(-0.1, 0.1, parameter_names=["t_c"])
     phase_c_prior = UniformPrior(0.0, 2 * jnp.pi, parameter_names=["phase_c"])
     psi_prior = UniformPrior(0.0, jnp.pi, parameter_names=["psi"])
     ra_prior = UniformPrior(0.0, 2 * jnp.pi, parameter_names=["ra"])
@@ -179,15 +181,17 @@ def run_pe(args: argparse.Namespace):
     # -------------------------------
     sample_transforms = [
         # Transformations for luminosity distance
-        DistanceToSNRWeightedDistanceTransform(gps_time=gps, ifos=jim_ifos),
+        # DistanceToSNRWeightedDistanceTransform(gps_time=gps, ifos=jim_ifos),
+        BoundToUnbound(name_mapping=(["d_L"], ["d_L_unbounded"]), original_lower_bound=0.0, original_upper_bound=dL_upper),
 
         # Transformations for phase
-        GeocentricArrivalPhaseToDetectorArrivalPhaseTransform(gps_time=gps, ifo=jim_ifos[0]),
-        PeriodicTransform(name_mapping=(["periodic_4", "phase_det"], ["phase_det_x", "phase_det_y"]), xmin=0.0, xmax=2 * jnp.pi),
-        # PeriodicTransform(name_mapping=(["periodic_4", "phase_c"], ["phase_c_x", "phase_c_y"]), xmin=0.0, xmax=2 * jnp.pi),
+        # GeocentricArrivalPhaseToDetectorArrivalPhaseTransform(gps_time=gps, ifo=jim_ifos[0]),
+        # PeriodicTransform(name_mapping=(["periodic_4", "phase_det"], ["phase_det_x", "phase_det_y"]), xmin=0.0, xmax=2 * jnp.pi),
+        PeriodicTransform(name_mapping=(["periodic_4", "phase_c"], ["phase_c_x", "phase_c_y"]), xmin=0.0, xmax=2 * jnp.pi),
 
         # Transformations for time
-        GeocentricArrivalTimeToDetectorArrivalTimeTransform(gps_time=gps, ifo=jim_ifos[0]),
+        # GeocentricArrivalTimeToDetectorArrivalTimeTransform(gps_time=gps, ifo=jim_ifos[0]),
+        BoundToUnbound(name_mapping=(["t_c"], ["t_c_unbounded"]), original_lower_bound=-0.1, original_upper_bound=0.1),
 
         # Transformations for sky position
         SkyFrameToDetectorFrameSkyPositionTransform(gps_time=gps, ifos=jim_ifos),
