@@ -284,7 +284,6 @@ def run_pe(args: argparse.Namespace):
 
     # Run the sampler
     jim.sample()
-    jim.print_summary()
 
     # -------------------------------
     # Postprocessing: Save samples and evaluate log probabilities
