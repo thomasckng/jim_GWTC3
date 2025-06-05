@@ -301,10 +301,11 @@ def run_pe(args: argparse.Namespace):
     samples = jim.get_samples()
     samples = {key: samples[key] for key in samples.keys()}
     log_prior = jax.vmap(prior.log_prob)(samples)
+    s = samples.copy()
     log_jacobian = jnp.zeros(len(log_prior))
     for transform in sample_transforms:
-        _, log_jac = jax.vmap(transform.transform)(samples) # samples in prior space
-        log_jacobian += log_jac
+        s, log_j = jax.vmap(transform.transform)(s) # samples in prior space
+        log_jacobian += log_j
     log_prior += log_jacobian  # log_prior in sampling space
 
     resources = jim.sampler.resources
