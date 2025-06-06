@@ -245,7 +245,7 @@ def run_pe(args: argparse.Namespace):
         max_L_sample = bilby_result.loc[bilby_result["log_likelihood"].idxmax()]
         ref_params = {
             "M_c": max_L_sample["chirp_mass"],
-            "q": max_L_sample["mass_ratio"],
+            "eta": max_L_sample["eta"],
             "s1_x": max_L_sample["spin_1x"],
             "s1_y": max_L_sample["spin_1y"],
             "s1_z": max_L_sample["spin_1z"],
