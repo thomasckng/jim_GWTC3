@@ -12,6 +12,7 @@ import argparse
 import jax.numpy as jnp
 import warnings
 warnings.filterwarnings("ignore", "Wswiglal-redir-stdio")
+from bilby.gw.result import CBCResult
 
 # Import custom argument parsing from utils
 import utils
@@ -237,16 +238,36 @@ def run_pe(args: argparse.Namespace):
     # -------------------------------
     if args.relative_binning:
         print("Using relative binning")
+
+        bilby_result_path = f"../bilby_runs/outdir/{args.event_id}/final_result"
+        bilby_result_file = os.listdir(bilby_result_path)[0]
+        bilby_result = CBCResult.from_hdf5(os.path.join(bilby_result_path, bilby_result_file)).posterior
+        max_L_sample = bilby_result.loc[bilby_result["log_likelihood"].idxmax()]
+        ref_params = {
+            "M_c": max_L_sample["chirp_mass"],
+            "q": max_L_sample["mass_ratio"],
+            "s1_x": max_L_sample["s1x"],
+            "s1_y": max_L_sample["s1y"],
+            "s1_z": max_L_sample["s1z"],
+            "s2_x": max_L_sample["s2x"],
+            "s2_y": max_L_sample["s2y"],
+            "s2_z": max_L_sample["s2z"],
+            "iota": max_L_sample["iota"],
+            "d_L": max_L_sample["luminosity_distance"],
+            "t_c": max_L_sample["geocent_time"] - gps,
+            "phase_c": max_L_sample["phase"],
+            "psi": max_L_sample["psi"],
+            "ra": max_L_sample["ra"],
+            "dec": max_L_sample["dec"],
+        }
         likelihood = HeterodynedTransientLikelihoodFD(
             jim_ifos,
             waveform=waveform,
             n_bins=1_000,
             trigger_time=gps,
-            prior=prior,
-            sample_transforms=sample_transforms,
-            likelihood_transforms=likelihood_transforms,
             f_min=fmin,
             f_max=fmax,
+            ref_params=ref_params,
         )
     else:
         print("Using normal likelihood")
