@@ -10,6 +10,8 @@ import time
 import pickle
 import argparse
 import jax.numpy as jnp
+import warnings
+warnings.filterwarnings("ignore", "Wswiglal-redir-stdio")
 
 # Import custom argument parsing from utils
 import utils
@@ -81,7 +83,7 @@ def run_pe(args: argparse.Namespace):
     print(f"Setting dL upper bound to be {dL_upper}")
 
     # -------------------------------
-    # Load interferometer data from HDF5 files
+    # Load interferometer data from bilby_pipe DataDump
     # -------------------------------
 
     bilby_ifos = bilby_data_dump.interferometers
@@ -121,7 +123,7 @@ def run_pe(args: argparse.Namespace):
         ifo_j.set_psd(jim_psd)
 
     # -------------------------------
-    # Select waveform based on event ID
+    # Set up waveform
     # -------------------------------
     ref_freq = float(bilby_data_dump.meta_data["command_line_args"]["reference_frequency"])
 
@@ -140,8 +142,8 @@ def run_pe(args: argparse.Namespace):
     prior += [Mc_prior, q_prior]
 
     # Spin priors
-    s1_prior = UniformSpherePrior(parameter_names=["s1"])
-    s2_prior = UniformSpherePrior(parameter_names=["s2"])
+    s1_prior = UniformSpherePrior(parameter_names=["s1"], max_mag=0.99)
+    s2_prior = UniformSpherePrior(parameter_names=["s2"], max_mag=0.99)
     iota_prior = SinePrior(parameter_names=["iota"])
     prior += [s1_prior, s2_prior, iota_prior]
     # theta_jn_prior = SinePrior(parameter_names=["theta_jn"])
@@ -154,10 +156,10 @@ def run_pe(args: argparse.Namespace):
     # prior += [theta_jn_prior, phi_jl_prior, tilt_1_prior, tilt_2_prior, phi_12_prior, a_1_prior, a_2_prior]
 
     # Extrinsic priors
-    # dL_prior = SimpleConstrainedPrior([PowerLawPrior(1.0, dL_upper, 2.0, parameter_names=["d_L"])])
-    dL_prior = PowerLawPrior(1.0, dL_upper, 2.0, parameter_names=["d_L"])
-    # t_c_prior = SimpleConstrainedPrior([UniformPrior(-0.1, 0.1, parameter_names=["t_c"])])
-    t_c_prior = UniformPrior(-0.1, 0.1, parameter_names=["t_c"])
+    dL_prior = SimpleConstrainedPrior([PowerLawPrior(1.0, dL_upper, 2.0, parameter_names=["d_L"])])
+    # dL_prior = PowerLawPrior(1.0, dL_upper, 2.0, parameter_names=["d_L"])
+    t_c_prior = SimpleConstrainedPrior([UniformPrior(-0.1, 0.1, parameter_names=["t_c"])])
+    # t_c_prior = UniformPrior(-0.1, 0.1, parameter_names=["t_c"])
     phase_c_prior = UniformPrior(0.0, 2 * jnp.pi, parameter_names=["phase_c"])
     psi_prior = UniformPrior(0.0, jnp.pi, parameter_names=["psi"])
     ra_prior = UniformPrior(0.0, 2 * jnp.pi, parameter_names=["ra"])
@@ -181,17 +183,17 @@ def run_pe(args: argparse.Namespace):
     # -------------------------------
     sample_transforms = [
         # Transformations for luminosity distance
-        # DistanceToSNRWeightedDistanceTransform(gps_time=gps, ifos=jim_ifos),
-        BoundToUnbound(name_mapping=(["d_L"], ["d_L_unbounded"]), original_lower_bound=0.0, original_upper_bound=dL_upper),
+        DistanceToSNRWeightedDistanceTransform(gps_time=gps, ifos=jim_ifos),
+        # BoundToUnbound(name_mapping=(["d_L"], ["d_L_unbounded"]), original_lower_bound=0.0, original_upper_bound=dL_upper),
 
         # Transformations for phase
-        # GeocentricArrivalPhaseToDetectorArrivalPhaseTransform(gps_time=gps, ifo=jim_ifos[0]),
-        # PeriodicTransform(name_mapping=(["periodic_4", "phase_det"], ["phase_det_x", "phase_det_y"]), xmin=0.0, xmax=2 * jnp.pi),
-        PeriodicTransform(name_mapping=(["periodic_4", "phase_c"], ["phase_c_x", "phase_c_y"]), xmin=0.0, xmax=2 * jnp.pi),
+        GeocentricArrivalPhaseToDetectorArrivalPhaseTransform(gps_time=gps, ifo=jim_ifos[0]),
+        PeriodicTransform(name_mapping=(["periodic_4", "phase_det"], ["phase_det_x", "phase_det_y"]), xmin=0.0, xmax=2 * jnp.pi),
+        # PeriodicTransform(name_mapping=(["periodic_4", "phase_c"], ["phase_c_x", "phase_c_y"]), xmin=0.0, xmax=2 * jnp.pi),
 
         # Transformations for time
-        # GeocentricArrivalTimeToDetectorArrivalTimeTransform(gps_time=gps, ifo=jim_ifos[0]),
-        BoundToUnbound(name_mapping=(["t_c"], ["t_c_unbounded"]), original_lower_bound=-0.1, original_upper_bound=0.1),
+        GeocentricArrivalTimeToDetectorArrivalTimeTransform(gps_time=gps, ifo=jim_ifos[0]),
+        # BoundToUnbound(name_mapping=(["t_c"], ["t_c_unbounded"]), original_lower_bound=-0.1, original_upper_bound=0.1),
 
         # Transformations for sky position
         SkyFrameToDetectorFrameSkyPositionTransform(gps_time=gps, ifos=jim_ifos),
@@ -289,24 +291,21 @@ def run_pe(args: argparse.Namespace):
     # Run the sampler
     jim.sample()
 
-    # -------------------------------
-    # Postprocessing: Save samples and evaluate log probabilities
-    # -------------------------------
     total_time_end = time.time()
     print(f"Time taken: {total_time_end - total_time_start} seconds = {(total_time_end - total_time_start) / 60} minutes")
 
-    # ---------------------------------
-    # Save samples, results, and chains
-    # ---------------------------------
+    # -------------------------------
+    # Postprocessing
+    # -------------------------------
     samples = jim.get_samples()
     downsample_indices = jax.random.choice(
         jax.random.PRNGKey(123),
-        jnp.arange(samples[samples.keys()[0]].shape[0]),
+        jnp.arange(samples[list(samples.keys())[0]].shape[0]),
         shape=(5000,),
         replace=False,
     )
     samples = {key: samples[key][downsample_indices] for key in samples.keys()}
-    log_likelihood = jax.vmap(jim.likelihood.evaluate)(samples)
+    log_likelihood = jax.vmap(jim.likelihood.evaluate)(samples, {})
     samples["log_L"] = log_likelihood
     jnp.savez(f"{event_outdir}/samples.npz", **samples)
 
@@ -328,12 +327,14 @@ def run_pe(args: argparse.Namespace):
               global_accs_production=global_acceptance_prod,
               chains=chains,
               )
+    
+    return jim
 
 
 def main():
     """Entry point: parse arguments and run the parameter estimation."""
-    run_pe(utils.get_parser().parse_args())
+    return run_pe(utils.get_parser().parse_args())
 
 
 if __name__ == "__main__":
-    main()
+    jim = main()
