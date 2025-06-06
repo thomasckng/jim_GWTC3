@@ -299,14 +299,16 @@ def run_pe(args: argparse.Namespace):
     # Save samples, results, and chains
     # ---------------------------------
     samples = jim.get_samples()
-    samples = {key: samples[key] for key in samples.keys()}
-    log_prior = jax.vmap(prior.log_prob)(samples)
-    s = samples.copy()
-    log_jacobian = jnp.zeros(len(log_prior))
-    for transform in sample_transforms:
-        s, log_j = jax.vmap(transform.transform)(s) # samples in prior space
-        log_jacobian += log_j
-    log_prior += log_jacobian  # log_prior in sampling space
+    downsample_indices = jax.random.choice(
+        jax.random.PRNGKey(123),
+        jnp.arange(samples[samples.keys()[0]].shape[0]),
+        shape=(5000,),
+        replace=False,
+    )
+    samples = {key: samples[key][downsample_indices] for key in samples.keys()}
+    log_likelihood = jax.vmap(jim.likelihood.evaluate)(samples)
+    samples["log_L"] = log_likelihood
+    jnp.savez(f"{event_outdir}/samples.npz", **samples)
 
     resources = jim.sampler.resources
     logprob_train = resources["log_prob_training"].data
@@ -317,18 +319,15 @@ def run_pe(args: argparse.Namespace):
     global_acceptance_prod = resources["global_accs_production"].data
     chains = resources["positions_production"].data
 
-    jnp.savez(
-        f"{event_outdir}/results.npz",
-        log_prob_training=logprob_train,
-        log_prob_production=logprob_prod,
-        local_accs_training=local_acceptance_train,
-        local_accs_production=local_acceptance_prod,
-        global_accs_training=global_acceptance_train,
-        global_accs_production=global_acceptance_prod,
-        chains=chains,
-        samples=samples,
-        log_prior=log_prior,
-    )
+    jnp.savez(f"{event_outdir}/results.npz",
+              log_prob_training=logprob_train,
+              log_prob_production=logprob_prod,
+              local_accs_training=local_acceptance_train,
+              local_accs_production=local_acceptance_prod,
+              global_accs_training=global_acceptance_train,
+              global_accs_production=global_acceptance_prod,
+              chains=chains,
+              )
 
 
 def main():

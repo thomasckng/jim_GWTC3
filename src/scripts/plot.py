@@ -58,25 +58,20 @@ def process_event(event):
 
         print(f"Processing {event}")
 
-        # Load Jim samples and log-probabilities from new results.npz
-        jim_results_file = paths.static / f"{jim_outdir}/{event}/results.npz"
+        # Load Jim samples and log-probabilities
+        jim_results_file = paths.static / f"{jim_outdir}/{event}/samples.npz"
         result_jim = jnp.load(jim_results_file, allow_pickle=True)
         # The samples dict is stored as an object array, so we need to extract it
         samples_dict = result_jim["samples"].item()
-        try:
-            keys = ["M_c", "q", "s1_mag", "s1_theta", "s1_phi", "s2_mag", "s2_theta", "s2_phi", "iota", "d_L", "ra", "dec", "t_c", "phase_c", "psi"]
-            samples_jim_list = [samples_dict[k] for k in keys]
-        except KeyError:
-            keys = ["M_c", "q", "a_1", "a_2", "tilt_1", "tilt_2", "phi_jl", "phi_12", "theta_jn", "d_L", "ra", "dec", "t_c", "phase_c", "psi"]
-            samples_jim_list = [samples_dict[k] for k in keys]
-        del samples_dict
-        gc.collect()
-        log_prob = result_jim["log_prob_production"].reshape(-1)
-        log_prior = result_jim["log_prior"]
         del result_jim
         gc.collect()
-        samples_jim_list.append(log_prob - log_prior)
-        del log_prob, log_prior
+        try:
+            keys = ["M_c", "q", "s1_mag", "s1_theta", "s1_phi", "s2_mag", "s2_theta", "s2_phi", "iota", "d_L", "ra", "dec", "t_c", "phase_c", "psi", "log_L"]
+            samples_jim_list = [samples_dict[k] for k in keys]
+        except KeyError:
+            keys = ["M_c", "q", "a_1", "a_2", "tilt_1", "tilt_2", "phi_jl", "phi_12", "theta_jn", "d_L", "ra", "dec", "t_c", "phase_c", "psi", "log_L"]
+            samples_jim_list = [samples_dict[k] for k in keys]
+        del samples_dict
         gc.collect()
         samples_jim = np.array(samples_jim_list).T
         del samples_jim_list
@@ -112,9 +107,8 @@ def process_event(event):
 
         # Plot comparison with logL
         try:
-            keys_l = keys + ["logL"]
-            fig = corner(samples_jim, labels=keys_l, color="blue", hist_kwargs={"density": True})
-            corner(samples_bilby, labels=keys_l, fig=fig, color="red", hist_kwargs={"density": True},)
+            fig = corner(samples_jim, labels=keys, color="blue", hist_kwargs={"density": True})
+            corner(samples_bilby, labels=keys, fig=fig, color="red", hist_kwargs={"density": True},)
             fig.legend(["jim", "bilby"], loc="right", fontsize=20)
             fig.savefig(target_file)
             plt.close(fig)
