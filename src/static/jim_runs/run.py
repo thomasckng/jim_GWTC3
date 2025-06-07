@@ -326,7 +326,10 @@ def run_pe(args: argparse.Namespace):
         replace=False,
     )
     samples = {key: samples[key][downsample_indices] for key in samples.keys()}
-    log_likelihood = jax.vmap(jim.likelihood.evaluate)(samples, {})
+    transformed_samples = samples.copy()
+    for transform in likelihood_transforms:
+        transformed_samples = transform.forward(transformed_samples)
+    log_likelihood = jax.vmap(jim.likelihood.evaluate)(transformed_samples, {})
     samples["log_L"] = log_likelihood
     jnp.savez(f"{event_outdir}/samples.npz", **samples)
 
