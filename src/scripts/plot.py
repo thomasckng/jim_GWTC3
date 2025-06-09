@@ -41,6 +41,7 @@ key_mapping = {
     "s2_phi": "phi_2",
     "s1_z": "chi_1",
     "s2_z": "chi_2",
+    "log_L": "log_likelihood",
 }
 
 # Number of samples to plot
@@ -61,17 +62,13 @@ def process_event(event):
         # Load Jim samples and log-probabilities
         jim_results_file = paths.static / f"{jim_outdir}/{event}/samples.npz"
         result_jim = jnp.load(jim_results_file, allow_pickle=True)
-        # The samples dict is stored as an object array, so we need to extract it
-        samples_dict = result_jim["samples"].item()
-        del result_jim
-        gc.collect()
         try:
             keys = ["M_c", "q", "s1_mag", "s1_theta", "s1_phi", "s2_mag", "s2_theta", "s2_phi", "iota", "d_L", "ra", "dec", "t_c", "phase_c", "psi", "log_L"]
-            samples_jim_list = [samples_dict[k] for k in keys]
+            samples_jim_list = [result_jim[k] for k in keys]
         except KeyError:
             keys = ["M_c", "q", "a_1", "a_2", "tilt_1", "tilt_2", "phi_jl", "phi_12", "theta_jn", "d_L", "ra", "dec", "t_c", "phase_c", "psi", "log_L"]
-            samples_jim_list = [samples_dict[k] for k in keys]
-        del samples_dict
+            samples_jim_list = [result_jim[k] for k in keys]
+        del result_jim
         gc.collect()
         samples_jim = np.array(samples_jim_list).T
         del samples_jim_list
@@ -98,7 +95,6 @@ def process_event(event):
         else:
             print(f"Warning: {event} has only {len(df)} samples")
         bilby_list = [df[key_mapping.get(k, k)].values for k in keys]
-        bilby_list.append(df["log_likelihood"].values)
         del df
         gc.collect()
         samples_bilby = np.array(bilby_list).T
