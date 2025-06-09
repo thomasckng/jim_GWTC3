@@ -23,8 +23,10 @@ def get_parser(**kwargs):
     parser.add_argument(
         "-r",
         "--relative-binning",
-        action="store_true",
-        help="Enable relative binning",
+        type=int,
+        choices=[0, 1, 2],
+        default=0,
+        help="Relative binning mode: 0=normal, 1=fixed reference, 2=optimised reference",
     )
 
     return parser

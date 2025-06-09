@@ -232,11 +232,20 @@ def run_pe(args: argparse.Namespace):
     ]
 
     # -------------------------------
-    # Setup Likelihood based on relative binning flag
+    # Setup Likelihood based on relative binning mode
     # -------------------------------
-    if args.relative_binning:
-        print("Using relative binning")
-
+    if args.relative_binning == 0:
+        print("Using normal likelihood")
+        likelihood = TransientLikelihoodFD(
+            jim_ifos,
+            waveform=waveform,
+            trigger_time=gps,
+            f_min=fmin,
+            f_max=fmax,
+        )
+    elif args.relative_binning == 1:
+        print("Using heterodyned likelihood with fixed reference parameters (bilby maxL sample)")
+        # Load bilby maxL sample as ref_params
         bilby_result_path = f"../bilby_runs/outdir/{args.event_id}/final_result"
         bilby_result_file = os.listdir(bilby_result_path)[0]
         bilby_result = CBCResult.from_hdf5(os.path.join(bilby_result_path, bilby_result_file)).posterior
@@ -267,14 +276,20 @@ def run_pe(args: argparse.Namespace):
             f_max=fmax,
             ref_params=ref_params,
         )
-    else:
-        print("Using normal likelihood")
-        likelihood = TransientLikelihoodFD(
+    elif args.relative_binning == 2:
+        print("Using heterodyned likelihood with optimised reference parameters")
+        likelihood = HeterodynedTransientLikelihoodFD(
             jim_ifos,
             waveform=waveform,
+            n_bins=1_000,
             trigger_time=gps,
             f_min=fmin,
             f_max=fmax,
+            popsize=1000,
+            n_steps=10000,
+            prior=prior,
+            sample_transforms=sample_transforms,
+            likelihood_transforms=likelihood_transforms,
         )
 
     # -------------------------------

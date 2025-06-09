@@ -8,13 +8,13 @@ usage() {
 
 OUTDIR=""
 EXCLUDE_NODES=false
-RELATIVE_BINNING=false
+RELATIVE_BINNING=0
 
-while getopts "o:er" opt; do
+while getopts "o:er:" opt; do
     case $opt in
         o) OUTDIR=$OPTARG ;;
         e) EXCLUDE_NODES=true ;;
-        r) RELATIVE_BINNING=true ;;
+        r) RELATIVE_BINNING=$OPTARG ;;
         ?) usage ;;
     esac
 done
@@ -31,16 +31,20 @@ csv_file="../event_status.csv"
 gw_ids=$(awk -F, 'NR>1 {print $1}' "$csv_file")
 
 for gw_id in $gw_ids; do
-  if [ "$RELATIVE_BINNING" = true ]; then
-    LABEL="_rb"
+  if [ "$RELATIVE_BINNING" -eq 1 ]; then
+    LABEL="_rb_fixed"
+  elif [ "$RELATIVE_BINNING" -eq 2 ]; then
+    LABEL="_rb_free"
   else
     LABEL=""
   fi
 
   JOB_NAME="${gw_id}${LABEL}"
   result_dir="$OUTDIR"
-  if [ "$RELATIVE_BINNING" = true ]; then
-    result_dir="$result_dir -r"
+  if [ "$RELATIVE_BINNING" -eq 1 ]; then
+    result_dir="$result_dir -r 1"
+  elif [ "$RELATIVE_BINNING" -eq 2 ]; then
+    result_dir="$result_dir -r 2"
   fi
 
   # Skip only if the per-event output dir contains samples.npz
