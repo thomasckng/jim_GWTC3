@@ -25,7 +25,7 @@ fi
 
 template_file="template.sh"
 
-mkdir -p slurm_scripts logs "$OUTDIR"
+mkdir -p slurm_scripts "$OUTDIR"
 
 csv_file="../event_status.csv"
 gw_ids=$(awk -F, 'NR>1 {print $1}' "$csv_file")
@@ -50,11 +50,15 @@ for gw_id in $gw_ids; do
     continue
   fi
 
+  # Create the per-event output directory
+  mkdir -p "$event_dir"
+
   new_script="slurm_scripts/submit_${JOB_NAME}.sh"
   cp "$template_file" "$new_script"
 
   sed -i "s/{{{JOB_NAME}}}/$JOB_NAME/g" "$new_script"
   sed -i "s/{{{GW_ID}}}/$gw_id/g"       "$new_script"
+  sed -i "s/{{{OUTDIR}}}/$OUTDIR/g"     "$new_script"
   sed -i "s#default#$result_dir#g"      "$new_script"
 
   chmod +x "$new_script"

@@ -2,8 +2,8 @@
 # Set job requirements
 #SBATCH --gpus=1
 #SBATCH --job-name={{{JOB_NAME}}}
-#SBATCH --output=logs/%x.out
-#SBATCH --error=logs/%x.err
+#SBATCH --output={{{OUTDIR}}}/{{{GW_ID}}}/%x.out
+#SBATCH --error={{{OUTDIR}}}/{{{GW_ID}}}/%x.err
 
 # Initialize Conda
 source ~/.bashrc
