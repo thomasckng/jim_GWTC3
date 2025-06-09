@@ -331,24 +331,24 @@ def run_pe(args: argparse.Namespace):
     samples["log_L"] = log_likelihood
     jnp.savez(f"{event_outdir}/samples.npz", **samples)
 
-    resources = jim.sampler.resources
-    logprob_train = resources["log_prob_training"].data
-    logprob_prod = resources["log_prob_production"].data
-    local_acceptance_train = resources["local_accs_training"].data
-    local_acceptance_prod = resources["local_accs_production"].data
-    global_acceptance_train = resources["global_accs_training"].data
-    global_acceptance_prod = resources["global_accs_production"].data
-    chains = resources["positions_production"].data
+    # resources = jim.sampler.resources
+    # logprob_train = resources["log_prob_training"].data
+    # logprob_prod = resources["log_prob_production"].data
+    # local_acceptance_train = resources["local_accs_training"].data
+    # local_acceptance_prod = resources["local_accs_production"].data
+    # global_acceptance_train = resources["global_accs_training"].data
+    # global_acceptance_prod = resources["global_accs_production"].data
+    # chains = resources["positions_production"].data
 
-    jnp.savez(f"{event_outdir}/results.npz",
-              log_prob_training=logprob_train,
-              log_prob_production=logprob_prod,
-              local_accs_training=local_acceptance_train,
-              local_accs_production=local_acceptance_prod,
-              global_accs_training=global_acceptance_train,
-              global_accs_production=global_acceptance_prod,
-              chains=chains,
-              )
+    # jnp.savez(f"{event_outdir}/results.npz",
+    #           log_prob_training=logprob_train,
+    #           log_prob_production=logprob_prod,
+    #           local_accs_training=local_acceptance_train,
+    #           local_accs_production=local_acceptance_prod,
+    #           global_accs_training=global_acceptance_train,
+    #           global_accs_production=global_acceptance_prod,
+    #           chains=chains,
+    #           )
     
     return jim
 
