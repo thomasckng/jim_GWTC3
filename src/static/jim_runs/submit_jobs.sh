@@ -43,10 +43,10 @@ for gw_id in $gw_ids; do
     result_dir="$result_dir -r"
   fi
 
-  # Skip only if the per-event output dir is non-empty
+  # Skip only if the per-event output dir contains samples.npz
   event_dir="$OUTDIR/$gw_id"
-  if [ -d "$event_dir" ] && [ "$(find "$event_dir" -type f | wc -l)" -gt 0 ]; then
-    echo "Skipping $gw_id: $event_dir is not empty"
+  if [ -f "$event_dir/samples.npz" ]; then
+    echo "Skipping $gw_id: $event_dir/samples.npz exists"
     continue
   fi
 
