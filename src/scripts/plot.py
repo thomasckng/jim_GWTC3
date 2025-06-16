@@ -55,7 +55,7 @@ def process_event(event):
         target_file = figure_outdir / f"{event}.jpg"
         if target_file.exists():
             print(f"Skipping {event}, figure already exists.")
-            return (event, None)
+            return
 
         print(f"Processing {event}")
 
@@ -82,7 +82,7 @@ def process_event(event):
         files = os.listdir(bilby_dir)
         if len(files) != 1:
             print(f"Error: {event} does not have a unique result file")
-            return (event, "error")
+            return
         res_file = bilby_dir / files[0]
         res_bilby = CBCResult.from_hdf5(res_file)
         trigger_time = float(res_bilby.meta_data["command_line_args"]["trigger_time"])
@@ -112,25 +112,13 @@ def process_event(event):
             print(f"Plot 2 error for {event}: {e}")
         del samples_jim, samples_bilby
         gc.collect()
-
-        return (event, "good")
     
     except Exception as e:
         print(f"Error processing {event}: {e}")
-        return (event, "error")
-
+        
 
 if __name__ == "__main__":
     # Parallel processing of events
     with multiprocessing.Pool(processes=n_procs) as pool:
-        results = pool.map(process_event, events)
-
-    # Update CSV statuses
-    for event, status in results:
-        if status == "good":
-            csv.loc[csv["Event"] == event, "Comparison"] = "good"
-        elif status == "error":
-            csv.loc[csv["Event"] == event, "Comparison"] = "error"
-        # None status means skipped; leave unchanged
-    csv.to_csv(paths.static / "event_status.csv", index=False)
-    print("All done.")
+        pool.map(process_event, events)
+    print("All done")
