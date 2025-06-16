@@ -68,7 +68,7 @@ for gw_id in $gw_ids; do
   chmod +x "$new_script"
 
   if [ "$EXCLUDE_NODES" = true ]; then
-    sbatch --exclude=b[1-8] "$new_script"
+    sbatch --exclude=a2,b[1-8] "$new_script"
   else
     sbatch "$new_script"
   fi
