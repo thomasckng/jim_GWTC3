@@ -155,10 +155,10 @@ def run_pe(args: argparse.Namespace):
     # prior += [theta_jn_prior, phi_jl_prior, tilt_1_prior, tilt_2_prior, phi_12_prior, a_1_prior, a_2_prior]
 
     # Extrinsic priors
-    # dL_prior = SimpleConstrainedPrior([PowerLawPrior(1.0, dL_upper, 2.0, parameter_names=["d_L"])])
-    dL_prior = PowerLawPrior(1.0, dL_upper, 2.0, parameter_names=["d_L"])
-    # t_c_prior = SimpleConstrainedPrior([UniformPrior(-0.1, 0.1, parameter_names=["t_c"])])
-    t_c_prior = UniformPrior(-0.1, 0.1, parameter_names=["t_c"])
+    dL_prior = SimpleConstrainedPrior([PowerLawPrior(1.0, dL_upper, 2.0, parameter_names=["d_L"])])
+    # dL_prior = PowerLawPrior(1.0, dL_upper, 2.0, parameter_names=["d_L"])
+    t_c_prior = SimpleConstrainedPrior([UniformPrior(-0.1, 0.1, parameter_names=["t_c"])])
+    # t_c_prior = UniformPrior(-0.1, 0.1, parameter_names=["t_c"])
     phase_c_prior = UniformPrior(0.0, 2 * jnp.pi, parameter_names=["phase_c"])
     psi_prior = UniformPrior(0.0, jnp.pi, parameter_names=["psi"])
     ra_prior = UniformPrior(0.0, 2 * jnp.pi, parameter_names=["ra"])
@@ -182,17 +182,17 @@ def run_pe(args: argparse.Namespace):
     # -------------------------------
     sample_transforms = [
         # Transformations for luminosity distance
-        # DistanceToSNRWeightedDistanceTransform(gps_time=gps, ifos=jim_ifos),
-        BoundToUnbound(name_mapping=(["d_L"], ["d_L_unbounded"]), original_lower_bound=0.0, original_upper_bound=dL_upper),
+        DistanceToSNRWeightedDistanceTransform(gps_time=gps, ifos=jim_ifos),
+        # BoundToUnbound(name_mapping=(["d_L"], ["d_L_unbounded"]), original_lower_bound=0.0, original_upper_bound=dL_upper),
 
         # Transformations for phase
-        # GeocentricArrivalPhaseToDetectorArrivalPhaseTransform(gps_time=gps, ifo=jim_ifos[0]),
-        # PeriodicTransform(name_mapping=(["periodic_4", "phase_det"], ["phase_det_x", "phase_det_y"]), xmin=0.0, xmax=2 * jnp.pi),
-        PeriodicTransform(name_mapping=(["periodic_4", "phase_c"], ["phase_c_x", "phase_c_y"]), xmin=0.0, xmax=2 * jnp.pi),
+        GeocentricArrivalPhaseToDetectorArrivalPhaseTransform(gps_time=gps, ifo=jim_ifos[0]),
+        PeriodicTransform(name_mapping=(["periodic_4", "phase_det"], ["phase_det_x", "phase_det_y"]), xmin=0.0, xmax=2 * jnp.pi),
+        # PeriodicTransform(name_mapping=(["periodic_4", "phase_c"], ["phase_c_x", "phase_c_y"]), xmin=0.0, xmax=2 * jnp.pi),
 
         # Transformations for time
-        # GeocentricArrivalTimeToDetectorArrivalTimeTransform(gps_time=gps, ifo=jim_ifos[0]),
-        BoundToUnbound(name_mapping=(["t_c"], ["t_c_unbounded"]), original_lower_bound=-0.1, original_upper_bound=0.1),
+        GeocentricArrivalTimeToDetectorArrivalTimeTransform(gps_time=gps, ifo=jim_ifos[0]),
+        # BoundToUnbound(name_mapping=(["t_c"], ["t_c_unbounded"]), original_lower_bound=-0.1, original_upper_bound=0.1),
 
         # Transformations for sky position
         SkyFrameToDetectorFrameSkyPositionTransform(gps_time=gps, ifos=jim_ifos),
@@ -295,7 +295,20 @@ def run_pe(args: argparse.Namespace):
     # -------------------------------
     # Configure the sampler and training parameters
     # -------------------------------
+    parameter_names = prior.parameter_names
+    for sample_transform in sample_transforms:
+        sample_transform.propagate_name(parameter_names)
+
     mass_matrix = jnp.eye(prior.n_dims)
+    q_index = parameter_names.index("q")
+    mass_matrix = mass_matrix.at[q_index, q_index].set(1e-3)
+    dL_index = parameter_names.index("d_L")
+    mass_matrix = mass_matrix.at[dL_index, dL_index].set(1e4)
+    tc_index = parameter_names.index("t_c")
+    mass_matrix = mass_matrix.at[tc_index, tc_index].set(1e-1)
+    mass_matrix *= 2e-3
+    print("Initial mass matrix (diagonal):")
+    print({k: v for k, v in zip(parameter_names, jnp.diag(mass_matrix))})
 
     jim = Jim(
         likelihood,
@@ -309,7 +322,7 @@ def run_pe(args: argparse.Namespace):
         n_training_loops=100,
         n_production_loops=10,
         n_epochs=20,
-        mala_step_size=mass_matrix * 2e-3,
+        mala_step_size=mass_matrix,
         rq_spline_hidden_units=[128, 128],
         rq_spline_n_bins=10,
         rq_spline_n_layers=8,
@@ -323,7 +336,7 @@ def run_pe(args: argparse.Namespace):
     )
 
     # Run the sampler
-    jim.sample()
+    jim.sample(jim.sample_initial_condition())
 
     total_time_end = time.time()
     print(f"Time taken: {total_time_end - total_time_start} seconds = {(total_time_end - total_time_start) / 60} minutes")
@@ -346,24 +359,24 @@ def run_pe(args: argparse.Namespace):
     samples["log_L"] = log_likelihood
     jnp.savez(f"{event_outdir}/samples.npz", **samples)
 
-    # resources = jim.sampler.resources
-    # logprob_train = resources["log_prob_training"].data
-    # logprob_prod = resources["log_prob_production"].data
-    # local_acceptance_train = resources["local_accs_training"].data
-    # local_acceptance_prod = resources["local_accs_production"].data
-    # global_acceptance_train = resources["global_accs_training"].data
-    # global_acceptance_prod = resources["global_accs_production"].data
-    # chains = resources["positions_production"].data
+    resources = jim.sampler.resources
+    # logprob_train = resources["log_prob_training"].data[::10, ::10]
+    logprob_prod = resources["log_prob_production"].data[::10, ::10]
+    # local_acceptance_train = resources["local_accs_training"].data[::10, ::10]
+    local_acceptance_prod = resources["local_accs_production"].data[::10, ::10]
+    # global_acceptance_train = resources["global_accs_training"].data[::10, ::10]
+    global_acceptance_prod = resources["global_accs_production"].data[::10, ::10]
+    chains = resources["positions_production"].data[::10, ::10, :]
 
-    # jnp.savez(f"{event_outdir}/results.npz",
-    #           log_prob_training=logprob_train,
-    #           log_prob_production=logprob_prod,
-    #           local_accs_training=local_acceptance_train,
-    #           local_accs_production=local_acceptance_prod,
-    #           global_accs_training=global_acceptance_train,
-    #           global_accs_production=global_acceptance_prod,
-    #           chains=chains,
-    #           )
+    jnp.savez(f"{event_outdir}/results.npz",
+            #   log_prob_training=logprob_train,
+              log_prob_production=logprob_prod,
+            #   local_accs_training=local_acceptance_train,
+              local_accs_production=local_acceptance_prod,
+            #   global_accs_training=global_acceptance_train,
+              global_accs_production=global_acceptance_prod,
+              chains=chains,
+              )
     
     return jim
 
