@@ -70,7 +70,7 @@ for gw_id in $gw_ids; do
   if [ "$EXCLUDE_NODES" = true ]; then
     sbatch --exclude=a2,b[1-8] "$new_script"
   else
-    sbatch "$new_script"
+    sbatch --exclude=a2 "$new_script"
   fi
 
   echo "Submitted job for $JOB_NAME"
