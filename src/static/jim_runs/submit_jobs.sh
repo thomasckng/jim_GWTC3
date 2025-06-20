@@ -2,22 +2,40 @@
 
 # Define usage
 usage() {
-    echo "Usage: $0 [-o outdir] [-e] [-r] (use -o to specify output directory, -e to exclude nodes b[1-8], -r to use relative binning)"
+    echo "Usage: $0 [-o outdir] [-e 0|1|2] [-r 0|1|2]"
+    echo "  -o outdir     Output directory (default: outdir)"
+    echo "  -e 0|1|2      Exclude nodes: 0=a2 (default), 1=a2,b[1-8], 2=a[1-9],b[1-8]"
+    echo "  -r 0|1|2      Relative binning: 0=normal likelihood (default), 1=relative binning with fixed reference parameters, 2=relative binning with optimized reference parameters"
     exit 1
 }
 
 OUTDIR=""
-EXCLUDE_NODES=false
+EXCLUDE_NODES=0
 RELATIVE_BINNING=0
 
-while getopts "o:er:" opt; do
+while getopts "o:e:r:" opt; do
     case $opt in
         o) OUTDIR=$OPTARG ;;
-        e) EXCLUDE_NODES=true ;;
+        e) EXCLUDE_NODES=$OPTARG ;;
         r) RELATIVE_BINNING=$OPTARG ;;
         ?) usage ;;
     esac
+    # Check for missing argument
+    if [[ $OPTARG == -* ]]; then
+        usage
+    fi
 done
+
+# Validate EXCLUDE_NODES
+if ! [[ "$EXCLUDE_NODES" =~ ^[0-2]$ ]]; then
+    echo "Invalid value for -e. Use 0, 1, or 2."
+    usage
+fi
+# Validate RELATIVE_BINNING
+if ! [[ "$RELATIVE_BINNING" =~ ^[0-2]$ ]]; then
+    echo "Invalid value for -r. Use 0, 1, or 2."
+    usage
+fi
 
 if [ -z "$OUTDIR" ]; then
     OUTDIR="outdir"
@@ -67,10 +85,12 @@ for gw_id in $gw_ids; do
 
   chmod +x "$new_script"
 
-  if [ "$EXCLUDE_NODES" = true ]; then
-    sbatch --exclude=a2,b[1-8] "$new_script"
-  else
+  if [ "$EXCLUDE_NODES" -eq 0 ]; then
     sbatch --exclude=a2 "$new_script"
+  elif [ "$EXCLUDE_NODES" -eq 1 ]; then
+    sbatch --exclude=a2,b[1-8] "$new_script"
+  elif [ "$EXCLUDE_NODES" -eq 2 ]; then
+    sbatch --exclude=a[1-9],b[1-8] "$new_script"
   fi
 
   echo "Submitted job for $JOB_NAME"
