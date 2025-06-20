@@ -6,6 +6,10 @@ import jax
 jax.config.update("jax_enable_x64", True)
 
 import os
+
+# Set JAX to use 95% of the available memory
+os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.95"
+
 import time
 import pickle
 import argparse
