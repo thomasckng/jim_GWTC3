@@ -8,7 +8,7 @@ jax.config.update("jax_enable_x64", True)
 import os
 
 # Set JAX to use 95% of the available memory
-os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.95"
+# os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.95"
 
 import time
 import pickle
@@ -48,7 +48,7 @@ from jimgw.core.single_event.transforms import (
     GeocentricArrivalTimeToDetectorArrivalTimeTransform,
     GeocentricArrivalPhaseToDetectorArrivalPhaseTransform,
     SphereSpinToCartesianSpinTransform,
-    # SpinAnglesToCartesianSpinTransform,
+    SpinAnglesToCartesianSpinTransform,
 )
 
 
@@ -145,24 +145,24 @@ def run_pe(args: argparse.Namespace):
     prior += [Mc_prior, q_prior]
 
     # Spin priors
-    s1_prior = UniformSpherePrior(parameter_names=["s1"], max_mag=0.99)
-    s2_prior = UniformSpherePrior(parameter_names=["s2"], max_mag=0.99)
-    iota_prior = SinePrior(parameter_names=["iota"])
-    prior += [s1_prior, s2_prior, iota_prior]
-    # theta_jn_prior = SinePrior(parameter_names=["theta_jn"])
-    # phi_jl_prior = UniformPrior(0.0, 2 * jnp.pi, parameter_names=["phi_jl"])
-    # tilt_1_prior = SinePrior(parameter_names=["tilt_1"])
-    # tilt_2_prior = SinePrior(parameter_names=["tilt_2"])
-    # phi_12_prior = UniformPrior(0.0, 2 * jnp.pi, parameter_names=["phi_12"])
-    # a_1_prior = UniformPrior(0.0, 1.0, parameter_names=["a_1"])
-    # a_2_prior = UniformPrior(0.0, 1.0, parameter_names=["a_2"])
-    # prior += [theta_jn_prior, phi_jl_prior, tilt_1_prior, tilt_2_prior, phi_12_prior, a_1_prior, a_2_prior]
+    # s1_prior = UniformSpherePrior(parameter_names=["s1"], max_mag=0.99)
+    # s2_prior = UniformSpherePrior(parameter_names=["s2"], max_mag=0.99)
+    # iota_prior = SinePrior(parameter_names=["iota"])
+    # prior += [s1_prior, s2_prior, iota_prior]
+    theta_jn_prior = SinePrior(parameter_names=["theta_jn"])
+    phi_jl_prior = UniformPrior(0.0, 2 * jnp.pi, parameter_names=["phi_jl"])
+    tilt_1_prior = SinePrior(parameter_names=["tilt_1"])
+    tilt_2_prior = SinePrior(parameter_names=["tilt_2"])
+    phi_12_prior = UniformPrior(0.0, 2 * jnp.pi, parameter_names=["phi_12"])
+    a_1_prior = UniformPrior(0.0, 1.0, parameter_names=["a_1"])
+    a_2_prior = UniformPrior(0.0, 1.0, parameter_names=["a_2"])
+    prior += [theta_jn_prior, phi_jl_prior, tilt_1_prior, tilt_2_prior, phi_12_prior, a_1_prior, a_2_prior]
 
     # Extrinsic priors
-    dL_prior = SimpleConstrainedPrior([PowerLawPrior(1.0, dL_upper, 2.0, parameter_names=["d_L"])])
-    # dL_prior = PowerLawPrior(1.0, dL_upper, 2.0, parameter_names=["d_L"])
-    t_c_prior = SimpleConstrainedPrior([UniformPrior(-0.1, 0.1, parameter_names=["t_c"])])
-    # t_c_prior = UniformPrior(-0.1, 0.1, parameter_names=["t_c"])
+    # dL_prior = SimpleConstrainedPrior([PowerLawPrior(1.0, dL_upper, 2.0, parameter_names=["d_L"])])
+    dL_prior = PowerLawPrior(1.0, dL_upper, 2.0, parameter_names=["d_L"])
+    # t_c_prior = SimpleConstrainedPrior([UniformPrior(-0.1, 0.1, parameter_names=["t_c"])])
+    t_c_prior = UniformPrior(-0.1, 0.1, parameter_names=["t_c"])
     phase_c_prior = UniformPrior(0.0, 2 * jnp.pi, parameter_names=["phase_c"])
     psi_prior = UniformPrior(0.0, jnp.pi, parameter_names=["psi"])
     ra_prior = UniformPrior(0.0, 2 * jnp.pi, parameter_names=["ra"])
@@ -186,17 +186,17 @@ def run_pe(args: argparse.Namespace):
     # -------------------------------
     sample_transforms = [
         # Transformations for luminosity distance
-        DistanceToSNRWeightedDistanceTransform(gps_time=gps, ifos=jim_ifos),
-        # BoundToUnbound(name_mapping=(["d_L"], ["d_L_unbounded"]), original_lower_bound=0.0, original_upper_bound=dL_upper),
+        # DistanceToSNRWeightedDistanceTransform(gps_time=gps, ifos=jim_ifos),
+        BoundToUnbound(name_mapping=(["d_L"], ["d_L_unbounded"]), original_lower_bound=0.0, original_upper_bound=dL_upper),
 
         # Transformations for phase
-        GeocentricArrivalPhaseToDetectorArrivalPhaseTransform(gps_time=gps, ifo=jim_ifos[0]),
-        PeriodicTransform(name_mapping=(["periodic_4", "phase_det"], ["phase_det_x", "phase_det_y"]), xmin=0.0, xmax=2 * jnp.pi),
-        # PeriodicTransform(name_mapping=(["periodic_4", "phase_c"], ["phase_c_x", "phase_c_y"]), xmin=0.0, xmax=2 * jnp.pi),
+        # GeocentricArrivalPhaseToDetectorArrivalPhaseTransform(gps_time=gps, ifo=jim_ifos[0]),
+        # PeriodicTransform(name_mapping=(["periodic_4", "phase_det"], ["phase_det_x", "phase_det_y"]), xmin=0.0, xmax=2 * jnp.pi),
+        PeriodicTransform(name_mapping=(["periodic_4", "phase_c"], ["phase_c_x", "phase_c_y"]), xmin=0.0, xmax=2 * jnp.pi),
 
         # Transformations for time
-        GeocentricArrivalTimeToDetectorArrivalTimeTransform(gps_time=gps, ifo=jim_ifos[0]),
-        # BoundToUnbound(name_mapping=(["t_c"], ["t_c_unbounded"]), original_lower_bound=-0.1, original_upper_bound=0.1),
+        # GeocentricArrivalTimeToDetectorArrivalTimeTransform(gps_time=gps, ifo=jim_ifos[0]),
+        BoundToUnbound(name_mapping=(["t_c"], ["t_c_unbounded"]), original_lower_bound=-0.1, original_upper_bound=0.1),
 
         # Transformations for sky position
         SkyFrameToDetectorFrameSkyPositionTransform(gps_time=gps, ifos=jim_ifos),
@@ -211,27 +211,27 @@ def run_pe(args: argparse.Namespace):
         BoundToUnbound(name_mapping=(["q"], ["q_unbounded"]), original_lower_bound=q_min, original_upper_bound=q_max),
 
         # Transformations for spins
-        BoundToUnbound(name_mapping=(["iota"], ["iota_unbounded"]), original_lower_bound=0.0, original_upper_bound=jnp.pi),
-        PeriodicTransform(name_mapping=(["periodic_1", "s1_phi"], ["s1_phi_base_x", "s1_phi_base_y"]), xmin=0.0, xmax=2 * jnp.pi),
-        PeriodicTransform(name_mapping=(["periodic_2", "s2_phi"], ["s2_phi_base_x", "s2_phi_base_y"]), xmin=0.0, xmax=2 * jnp.pi),
-        BoundToUnbound(name_mapping=(["s1_theta"], ["s1_theta_unbounded"]), original_lower_bound=0.0, original_upper_bound=jnp.pi),
-        BoundToUnbound(name_mapping=(["s2_theta"], ["s2_theta_unbounded"]), original_lower_bound=0.0, original_upper_bound=jnp.pi),
-        BoundToUnbound(name_mapping=(["s1_mag"], ["s1_mag_unbounded"]), original_lower_bound=0.0, original_upper_bound=0.99),
-        BoundToUnbound(name_mapping=(["s2_mag"], ["s2_mag_unbounded"]), original_lower_bound=0.0, original_upper_bound=0.99),
-        # BoundToUnbound(name_mapping=(["theta_jn"], ["theta_jn_unbounded"]), original_lower_bound=0.0, original_upper_bound=jnp.pi),
-        # PeriodicTransform(name_mapping=(["periodic_1", "phi_jl"], ["phi_jl_x", "phi_jl_y"]), xmin=0.0, xmax=2 * jnp.pi),
-        # BoundToUnbound(name_mapping=(["tilt_1"], ["tilt_1_unbounded"]), original_lower_bound=0.0, original_upper_bound=jnp.pi),
-        # BoundToUnbound(name_mapping=(["tilt_2"], ["tilt_2_unbounded"]), original_lower_bound=0.0, original_upper_bound=jnp.pi),
-        # PeriodicTransform(name_mapping=(["periodic_2", "phi_12"], ["phi_12_x", "phi_12_y"]), xmin=0.0, xmax=2 * jnp.pi),
-        # BoundToUnbound(name_mapping=(["a_1"], ["a_1_unbounded"]), original_lower_bound=0.0, original_upper_bound=1.0),
-        # BoundToUnbound(name_mapping=(["a_2"], ["a_2_unbounded"]), original_lower_bound=0.0, original_upper_bound=1.0),
+        # BoundToUnbound(name_mapping=(["iota"], ["iota_unbounded"]), original_lower_bound=0.0, original_upper_bound=jnp.pi),
+        # PeriodicTransform(name_mapping=(["periodic_1", "s1_phi"], ["s1_phi_base_x", "s1_phi_base_y"]), xmin=0.0, xmax=2 * jnp.pi),
+        # PeriodicTransform(name_mapping=(["periodic_2", "s2_phi"], ["s2_phi_base_x", "s2_phi_base_y"]), xmin=0.0, xmax=2 * jnp.pi),
+        # BoundToUnbound(name_mapping=(["s1_theta"], ["s1_theta_unbounded"]), original_lower_bound=0.0, original_upper_bound=jnp.pi),
+        # BoundToUnbound(name_mapping=(["s2_theta"], ["s2_theta_unbounded"]), original_lower_bound=0.0, original_upper_bound=jnp.pi),
+        # BoundToUnbound(name_mapping=(["s1_mag"], ["s1_mag_unbounded"]), original_lower_bound=0.0, original_upper_bound=0.99),
+        # BoundToUnbound(name_mapping=(["s2_mag"], ["s2_mag_unbounded"]), original_lower_bound=0.0, original_upper_bound=0.99),
+        BoundToUnbound(name_mapping=(["theta_jn"], ["theta_jn_unbounded"]), original_lower_bound=0.0, original_upper_bound=jnp.pi),
+        PeriodicTransform(name_mapping=(["periodic_1", "phi_jl"], ["phi_jl_x", "phi_jl_y"]), xmin=0.0, xmax=2 * jnp.pi),
+        BoundToUnbound(name_mapping=(["tilt_1"], ["tilt_1_unbounded"]), original_lower_bound=0.0, original_upper_bound=jnp.pi),
+        BoundToUnbound(name_mapping=(["tilt_2"], ["tilt_2_unbounded"]), original_lower_bound=0.0, original_upper_bound=jnp.pi),
+        PeriodicTransform(name_mapping=(["periodic_2", "phi_12"], ["phi_12_x", "phi_12_y"]), xmin=0.0, xmax=2 * jnp.pi),
+        BoundToUnbound(name_mapping=(["a_1"], ["a_1_unbounded"]), original_lower_bound=0.0, original_upper_bound=1.0),
+        BoundToUnbound(name_mapping=(["a_2"], ["a_2_unbounded"]), original_lower_bound=0.0, original_upper_bound=1.0),
     ]
 
     # Likelihood transforms
     likelihood_transforms = [
-        SphereSpinToCartesianSpinTransform("s1"),
-        SphereSpinToCartesianSpinTransform("s2"),
-        # SpinAnglesToCartesianSpinTransform(freq_ref=ref_freq),
+        # SphereSpinToCartesianSpinTransform("s1"),
+        # SphereSpinToCartesianSpinTransform("s2"),
+        SpinAnglesToCartesianSpinTransform(freq_ref=ref_freq),
         MassRatioToSymmetricMassRatioTransform,
     ]
 
@@ -306,10 +306,10 @@ def run_pe(args: argparse.Namespace):
     mass_matrix = jnp.eye(prior.n_dims)
     q_index = parameter_names.index("q")
     mass_matrix = mass_matrix.at[q_index, q_index].set(1e-3)
-    dL_index = parameter_names.index("d_L")
-    mass_matrix = mass_matrix.at[dL_index, dL_index].set(1e4)
-    tc_index = parameter_names.index("t_c")
-    mass_matrix = mass_matrix.at[tc_index, tc_index].set(1e-1)
+    # dL_index = parameter_names.index("d_L")
+    # mass_matrix = mass_matrix.at[dL_index, dL_index].set(1e4)
+    # tc_index = parameter_names.index("t_c")
+    # mass_matrix = mass_matrix.at[tc_index, tc_index].set(1e-1)
     mass_matrix *= 2e-3
     print("Initial mass matrix (diagonal):")
     print({k: v for k, v in zip(parameter_names, jnp.diag(mass_matrix))})
