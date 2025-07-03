@@ -304,8 +304,8 @@ def run_pe(args: argparse.Namespace):
         sample_transform.propagate_name(parameter_names)
 
     mass_matrix = jnp.eye(prior.n_dims)
-    q_index = parameter_names.index("q")
-    mass_matrix = mass_matrix.at[q_index, q_index].set(1e-3)
+    # q_index = parameter_names.index("q")
+    # mass_matrix = mass_matrix.at[q_index, q_index].set(1e-3)
     # dL_index = parameter_names.index("d_L")
     # mass_matrix = mass_matrix.at[dL_index, dL_index].set(1e4)
     # tc_index = parameter_names.index("t_c")
@@ -323,7 +323,7 @@ def run_pe(args: argparse.Namespace):
         n_chains=500,
         n_local_steps=100,
         n_global_steps=1000,
-        n_training_loops=100,
+        n_training_loops=20,
         n_production_loops=10,
         n_epochs=20,
         mala_step_size=mass_matrix,
@@ -332,10 +332,10 @@ def run_pe(args: argparse.Namespace):
         rq_spline_n_layers=8,
         learning_rate=1e-3,
         batch_size=10000,
-        n_max_examples=10000,
-        n_NFproposal_batch_size=5,
+        n_max_examples=30000,
+        n_NFproposal_batch_size=100,
         local_thinning=1,
-        global_thinning=1,
+        global_thinning=100,
         verbose=True,
     )
 
