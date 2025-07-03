@@ -323,7 +323,7 @@ def run_pe(args: argparse.Namespace):
         n_chains=500,
         n_local_steps=100,
         n_global_steps=1000,
-        n_training_loops=20,
+        n_training_loops=100,
         n_production_loops=10,
         n_epochs=20,
         mala_step_size=mass_matrix,
