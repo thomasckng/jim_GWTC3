@@ -162,12 +162,14 @@ def run_pe(args: argparse.Namespace):
     # dL_prior = SimpleConstrainedPrior([PowerLawPrior(1.0, dL_upper, 2.0, parameter_names=["d_L"])])
     dL_prior = PowerLawPrior(1.0, dL_upper, 2.0, parameter_names=["d_L"])
     # t_c_prior = SimpleConstrainedPrior([UniformPrior(-0.1, 0.1, parameter_names=["t_c"])])
-    t_c_prior = UniformPrior(-0.1, 0.1, parameter_names=["t_c"])
+    # t_c_prior = UniformPrior(-0.1, 0.1, parameter_names=["t_c"])
     phase_c_prior = UniformPrior(0.0, 2 * jnp.pi, parameter_names=["phase_c"])
     psi_prior = UniformPrior(0.0, jnp.pi, parameter_names=["psi"])
     ra_prior = UniformPrior(0.0, 2 * jnp.pi, parameter_names=["ra"])
     dec_prior = CosinePrior(parameter_names=["dec"])
-    prior += [dL_prior, t_c_prior, phase_c_prior, psi_prior, ra_prior, dec_prior]
+    prior += [dL_prior,
+            #   t_c_prior,
+              phase_c_prior, psi_prior, ra_prior, dec_prior]
 
     # Extra priors for periodic parameters
     prior += [
@@ -196,7 +198,7 @@ def run_pe(args: argparse.Namespace):
 
         # Transformations for time
         # GeocentricArrivalTimeToDetectorArrivalTimeTransform(gps_time=gps, ifo=jim_ifos[0]),
-        BoundToUnbound(name_mapping=(["t_c"], ["t_c_unbounded"]), original_lower_bound=-0.1, original_upper_bound=0.1),
+        # BoundToUnbound(name_mapping=(["t_c"], ["t_c_unbounded"]), original_lower_bound=-0.1, original_upper_bound=0.1),
 
         # Transformations for sky position
         SkyFrameToDetectorFrameSkyPositionTransform(gps_time=gps, ifos=jim_ifos),

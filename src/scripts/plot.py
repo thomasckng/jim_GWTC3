@@ -62,12 +62,22 @@ def process_event(event):
         # Load Jim samples and log-probabilities
         jim_results_file = paths.static / f"{jim_outdir}/{event}/samples.npz"
         result_jim = jnp.load(jim_results_file, allow_pickle=True)
-        try:
-            keys = ["M_c", "q", "s1_mag", "s1_theta", "s1_phi", "s2_mag", "s2_theta", "s2_phi", "iota", "d_L", "ra", "dec", "t_c", "phase_c", "psi", "log_L"]
-            samples_jim_list = [result_jim[k] for k in keys]
-        except KeyError:
-            keys = ["M_c", "q", "a_1", "a_2", "tilt_1", "tilt_2", "phi_jl", "phi_12", "theta_jn", "d_L", "ra", "dec", "t_c", "phase_c", "psi", "log_L"]
-            samples_jim_list = [result_jim[k] for k in keys]
+        # Try multiple possible key sets for Jim samples, raise error if none match
+        key_options = [
+            ["M_c", "q", "s1_mag", "s1_theta", "s1_phi", "s2_mag", "s2_theta", "s2_phi", "iota", "d_L", "ra", "dec", "t_c", "phase_c", "psi", "log_L"], # original keys
+            ["M_c", "q", "a_1", "a_2", "tilt_1", "tilt_2", "phi_jl", "phi_12", "theta_jn", "d_L", "ra", "dec", "t_c", "phase_c", "psi", "log_L"], # keys with spin angles
+            ["M_c", "q", "s1_mag", "s1_theta", "s1_phi", "s2_mag", "s2_theta", "s2_phi", "iota", "d_L", "ra", "dec", "phase_c", "psi", "log_L"], # original keys with time marginalization
+            ["M_c", "q", "a_1", "a_2", "tilt_1", "tilt_2", "phi_jl", "phi_12", "theta_jn", "d_L", "ra", "dec", "phase_c", "psi", "log_L"], # keys with spin angles and time marginalization
+        ]
+        for keys in key_options:
+            try:
+                samples_jim_list = [result_jim[k] for k in keys]
+                break
+            except KeyError:
+                continue
+        else:
+            raise KeyError(f"None of the expected key sets found in Jim samples for event {event}")
+
         del result_jim
         gc.collect()
         samples_jim = np.array(samples_jim_list).T
