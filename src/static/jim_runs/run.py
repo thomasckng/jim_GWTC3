@@ -246,6 +246,7 @@ def run_pe(args: argparse.Namespace):
             trigger_time=gps,
             f_min=fmin,
             f_max=fmax,
+            marginalization="time",
         )
     elif args.relative_binning == 1:
         print("Using heterodyned likelihood with fixed reference parameters (bilby maxL sample)")
@@ -323,7 +324,7 @@ def run_pe(args: argparse.Namespace):
         n_chains=500,
         n_local_steps=100,
         n_global_steps=1000,
-        n_training_loops=100,
+        n_training_loops=20,
         n_production_loops=10,
         n_epochs=20,
         mala_step_size=mass_matrix,
@@ -335,7 +336,7 @@ def run_pe(args: argparse.Namespace):
         n_max_examples=30000,
         n_NFproposal_batch_size=100,
         local_thinning=1,
-        global_thinning=100,
+        global_thinning=10,
         verbose=True,
     )
 
