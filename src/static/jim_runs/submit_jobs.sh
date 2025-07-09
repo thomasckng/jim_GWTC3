@@ -2,22 +2,25 @@
 
 # Define usage
 usage() {
-    echo "Usage: $0 [-o outdir] [-e 0|1|2] [-r 0|1|2]"
-    echo "  -o outdir     Output directory (default: outdir)"
+    echo "Usage: $0 [-o suffix] [-e 0|1|2] [-r 0|1|2] [-t]"
+    echo "  -o suffix     Output directory suffix (creates outdir_SUFFIX, default: no suffix)"
     echo "  -e 0|1|2      Exclude nodes: 0=a2 (default), 1=a2,b[1-8], 2=a[1-9],b[1-8]"
     echo "  -r 0|1|2      Relative binning: 0=normal likelihood (default), 1=relative binning with fixed reference parameters, 2=relative binning with optimized reference parameters"
+    echo "  -t            Test mode: only run GW150914"
     exit 1
 }
 
-OUTDIR=""
+OUTDIR_SUFFIX=""
 EXCLUDE_NODES=0
 RELATIVE_BINNING=0
+TEST_MODE=0
 
-while getopts "o:e:r:" opt; do
+while getopts "o:e:r:t" opt; do
     case $opt in
-        o) OUTDIR=$OPTARG ;;
+        o) OUTDIR_SUFFIX=$OPTARG ;;
         e) EXCLUDE_NODES=$OPTARG ;;
         r) RELATIVE_BINNING=$OPTARG ;;
+        t) TEST_MODE=1 ;;
         ?) usage ;;
     esac
     # Check for missing argument
@@ -37,8 +40,10 @@ if ! [[ "$RELATIVE_BINNING" =~ ^[0-2]$ ]]; then
     usage
 fi
 
-if [ -z "$OUTDIR" ]; then
+if [ -z "$OUTDIR_SUFFIX" ]; then
     OUTDIR="outdir"
+else
+    OUTDIR="outdir_$OUTDIR_SUFFIX"
 fi
 
 template_file="template.sh"
@@ -46,7 +51,11 @@ template_file="template.sh"
 mkdir -p slurm_scripts "$OUTDIR"
 
 csv_file="../event_status.csv"
-gw_ids=$(awk -F, 'NR>1 {print $1}' "$csv_file")
+if [ "$TEST_MODE" -eq 1 ]; then
+    gw_ids="GW150914"
+else
+    gw_ids=$(awk -F, 'NR>1 {print $1}' "$csv_file")
+fi
 
 for gw_id in $gw_ids; do
   if [ "$RELATIVE_BINNING" -eq 1 ]; then
