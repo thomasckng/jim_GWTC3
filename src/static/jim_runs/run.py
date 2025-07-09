@@ -72,7 +72,7 @@ def run_pe(args: argparse.Namespace):
     # Load bilby_pipe DataDump
     # -------------------------------
     print(f"Fetching bilby_pipe DataDump for event {args.event_id}")
-    bilby_data_dump_path = f"../bilby_runs/outdir/{args.event_id}/data"
+    bilby_data_dump_path = f"../bilby_runs/outdir_time/{args.event_id}/data"
     bilby_data_file = os.listdir(bilby_data_dump_path)[0]
     with open(os.path.join(bilby_data_dump_path, bilby_data_file), "rb") as f:
         bilby_data_dump = pickle.load(f)
@@ -104,26 +104,28 @@ def run_pe(args: argparse.Namespace):
     fmax = max(fmaxs)
 
     for ifo_b, ifo_j in zip(bilby_ifos, jim_ifos):
-        # This line trigger the freq_domain_strain calculation
-        # which then trigger the window factor computation
-        # which is then multiply to the bilby psd_array as final output.
-        _ = ifo_b.frequency_domain_strain
-
         # set analysis data
-        jim_data = Data.from_fd(
-            fd=ifo_b.frequency_domain_strain,
-            frequencies=ifo_b.frequency_array,
-            epoch=ifo_b.start_time,
-            name=ifo_b.name + "_fd_data",
-        )
+        data = Data.from_gwosc(ifo_b.name, ifo_b.start_time, ifo_b.start_time + ifo_b.duration)
+        ifo_j.set_data(data)
 
-        jim_psd = PowerSpectrum(
-            values=ifo_b.power_spectral_density_array,
-            frequencies=ifo_b.frequency_array,
-            name=ifo_b.name + "_psd",
-        )
-        ifo_j.set_data(jim_data)
-        ifo_j.set_psd(jim_psd)
+        # set PSD (Welch estimate)
+        psd_start = bilby_data_dump.meta_data['command_line_args']['psd_start_time']
+        psd_duration = float(bilby_data_dump.meta_data['command_line_args']['psd_length']) * ifo_b.duration
+        psd_start = ifo_b.start_time - psd_duration if psd_start is None else float(psd_start)
+
+        psd_data = Data.from_gwosc(ifo_b.name, psd_start, psd_start + psd_duration)
+        if jnp.isnan(psd_data.td).any():
+            raise ValueError(
+                f"PSD data for {ifo_b.name} contains NaNs."
+            )
+        
+        alpha = 2 * float(bilby_data_dump.meta_data['command_line_args']['tukey_roll_off']) / ifo_b.duration
+        psd_data.set_tukey_window(alpha=alpha)
+
+        # set an NFFT corresponding to the analysis segment duration
+        psd_fftlength = ifo_b.duration * ifo_b.sampling_frequency
+        psd_noverlap = psd_fftlength * float(bilby_data_dump.meta_data['command_line_args']['psd_fractional_overlap'])
+        ifo_j.set_psd(psd_data.to_psd(nperseg=psd_fftlength, noverlap=psd_noverlap))
 
     # -------------------------------
     # Set up waveform
@@ -253,7 +255,7 @@ def run_pe(args: argparse.Namespace):
     elif args.relative_binning == 1:
         print("Using heterodyned likelihood with fixed reference parameters (bilby maxL sample)")
         # Load bilby maxL sample as ref_params
-        bilby_result_path = f"../bilby_runs/outdir/{args.event_id}/final_result"
+        bilby_result_path = f"../bilby_runs/outdir_time/{args.event_id}/final_result"
         bilby_result_file = os.listdir(bilby_result_path)[0]
         bilby_result = CBCResult.from_hdf5(os.path.join(bilby_result_path, bilby_result_file)).posterior
         max_L_sample = bilby_result.loc[bilby_result["log_likelihood"].idxmax()]
