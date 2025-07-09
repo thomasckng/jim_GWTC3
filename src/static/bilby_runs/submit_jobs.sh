@@ -2,7 +2,7 @@
 
 # Activate the conda environment
 source ~/.bashrc
-conda activate /home/sylvia.biscoveanu/.conda/envs/bilby_o4review_230314/
+conda activate igwn
 
 # Read the event IDs from the CSV file
 csv_file="../event_status.csv"
