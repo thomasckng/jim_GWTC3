@@ -72,7 +72,7 @@ def run_pe(args: argparse.Namespace):
     # Load bilby_pipe DataDump
     # -------------------------------
     print(f"Fetching bilby_pipe DataDump for event {args.event_id}")
-    bilby_data_dump_path = f"../bilby_runs/outdir_time/{args.event_id}/data"
+    bilby_data_dump_path = f"../bilby_runs/outdir/{args.event_id}/data"
     bilby_data_file = os.listdir(bilby_data_dump_path)[0]
     with open(os.path.join(bilby_data_dump_path, bilby_data_file), "rb") as f:
         bilby_data_dump = pickle.load(f)
@@ -163,14 +163,14 @@ def run_pe(args: argparse.Namespace):
     # Extrinsic priors
     dL_prior = SimpleConstrainedPrior([PowerLawPrior(1.0, dL_upper, 2.0, parameter_names=["d_L"])])
     # dL_prior = PowerLawPrior(1.0, dL_upper, 2.0, parameter_names=["d_L"])
-    # t_c_prior = SimpleConstrainedPrior([UniformPrior(-0.1, 0.1, parameter_names=["t_c"])])
+    t_c_prior = SimpleConstrainedPrior([UniformPrior(-0.1, 0.1, parameter_names=["t_c"])])
     # t_c_prior = UniformPrior(-0.1, 0.1, parameter_names=["t_c"])
     phase_c_prior = UniformPrior(0.0, 2 * jnp.pi, parameter_names=["phase_c"])
     psi_prior = UniformPrior(0.0, jnp.pi, parameter_names=["psi"])
     ra_prior = UniformPrior(0.0, 2 * jnp.pi, parameter_names=["ra"])
     dec_prior = CosinePrior(parameter_names=["dec"])
     prior += [dL_prior,
-            #   t_c_prior,
+              t_c_prior,
               phase_c_prior, psi_prior, ra_prior, dec_prior]
 
     # Extra priors for periodic parameters
@@ -199,7 +199,7 @@ def run_pe(args: argparse.Namespace):
         # PeriodicTransform(name_mapping=(["periodic_4", "phase_c"], ["phase_c_x", "phase_c_y"]), xmin=0.0, xmax=2 * jnp.pi),
 
         # Transformations for time
-        # GeocentricArrivalTimeToDetectorArrivalTimeTransform(gps_time=gps, ifo=jim_ifos[0]),
+        GeocentricArrivalTimeToDetectorArrivalTimeTransform(gps_time=gps, ifo=jim_ifos[0]),
         # BoundToUnbound(name_mapping=(["t_c"], ["t_c_unbounded"]), original_lower_bound=-0.1, original_upper_bound=0.1),
 
         # Transformations for sky position
@@ -250,12 +250,12 @@ def run_pe(args: argparse.Namespace):
             trigger_time=gps,
             f_min=fmin,
             f_max=fmax,
-            marginalization="time",
+            # marginalization="time",
         )
     elif args.relative_binning == 1:
         print("Using heterodyned likelihood with fixed reference parameters (bilby maxL sample)")
         # Load bilby maxL sample as ref_params
-        bilby_result_path = f"../bilby_runs/outdir_time/{args.event_id}/final_result"
+        bilby_result_path = f"../bilby_runs/outdir/{args.event_id}/final_result"
         bilby_result_file = os.listdir(bilby_result_path)[0]
         bilby_result = CBCResult.from_hdf5(os.path.join(bilby_result_path, bilby_result_file)).posterior
         max_L_sample = bilby_result.loc[bilby_result["log_likelihood"].idxmax()]
@@ -313,8 +313,8 @@ def run_pe(args: argparse.Namespace):
     # mass_matrix = mass_matrix.at[q_index, q_index].set(1e-3)
     dL_index = parameter_names.index("d_L")
     mass_matrix = mass_matrix.at[dL_index, dL_index].set(1e4)
-    # tc_index = parameter_names.index("t_c")
-    # mass_matrix = mass_matrix.at[tc_index, tc_index].set(1e-1)
+    tc_index = parameter_names.index("t_c")
+    mass_matrix = mass_matrix.at[tc_index, tc_index].set(1e-1)
     mass_matrix *= 2e-3
     print("Initial mass matrix (diagonal):")
     print({k: v for k, v in zip(parameter_names, jnp.diag(mass_matrix))})
@@ -328,7 +328,7 @@ def run_pe(args: argparse.Namespace):
         n_chains=500,
         n_local_steps=100,
         n_global_steps=1000,
-        n_training_loops=20,
+        n_training_loops=100,
         n_production_loops=10,
         n_epochs=20,
         mala_step_size=mass_matrix,
@@ -337,8 +337,8 @@ def run_pe(args: argparse.Namespace):
         rq_spline_n_layers=8,
         learning_rate=1e-3,
         batch_size=10000,
-        n_max_examples=30000,
-        n_NFproposal_batch_size=100,
+        n_max_examples=10000,
+        n_NFproposal_batch_size=5,
         local_thinning=1,
         global_thinning=10,
         verbose=True,
