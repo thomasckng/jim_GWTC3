@@ -13,6 +13,7 @@ import os
 import time
 import pickle
 import argparse
+import matplotlib.pyplot as plt
 import jax.numpy as jnp
 import warnings
 warnings.filterwarnings("ignore", "Wswiglal-redir-stdio")
@@ -104,11 +105,7 @@ def run_pe(args: argparse.Namespace):
     fmax = max(fmaxs)
 
     for ifo_b, ifo_j in zip(bilby_ifos, jim_ifos):
-        # set analysis data
-        data = Data.from_gwosc(ifo_b.name, ifo_b.start_time, ifo_b.start_time + ifo_b.duration)
-        ifo_j.set_data(data)
-
-        # set PSD (Welch estimate)
+        # Load PSD data from GWOSC
         psd_start = bilby_data_dump.meta_data['command_line_args']['psd_start_time']
         psd_duration = float(bilby_data_dump.meta_data['command_line_args']['psd_length']) * ifo_b.duration
         psd_start = ifo_b.start_time - psd_duration if psd_start is None else float(psd_start)
@@ -127,6 +124,95 @@ def run_pe(args: argparse.Namespace):
         psd_noverlap = psd_fftlength * float(bilby_data_dump.meta_data['command_line_args']['psd_fractional_overlap'])
         ifo_j.set_psd(psd_data.to_psd(nperseg=psd_fftlength, noverlap=psd_noverlap))
 
+        # set analysis data
+        data = Data.from_gwosc(ifo_b.name, ifo_b.start_time, ifo_b.start_time + ifo_b.duration)
+        ifo_j.set_data(data)
+
+    # -------------------------------
+    # Compare data and PSD between bilby and jim
+    # -------------------------------
+    print("Creating comparison plots between bilby and jim data/PSD...")
+    
+    # Create comparison plots (4 rows: data, PSD, data residual, PSD residual)
+    fig, axes = plt.subplots(4, len(bilby_ifos), figsize=(5*len(bilby_ifos), 16))
+    if len(bilby_ifos) == 1:
+        axes = axes.reshape(4, 1)
+    
+    for i, (ifo_b, ifo_j) in enumerate(zip(bilby_ifos, jim_ifos)):
+        # Trigger FFT calculation for Jim data
+        ifo_j.data.fft()
+        
+        # Interpolate Jim data to bilby frequency grid for residual calculation
+        jim_data_interp = jnp.interp(ifo_b.frequency_array, ifo_j.data.frequencies, ifo_j.data.fd)
+        jim_psd_interp = jnp.interp(ifo_b.frequency_array, ifo_j.psd.frequencies, ifo_j.psd.values)
+        
+        # Plot data comparison
+        axes[0, i].loglog(ifo_b.frequency_array, jnp.abs(ifo_b.frequency_domain_strain), 
+                         label='Bilby data', alpha=0.7)
+        axes[0, i].loglog(ifo_j.data.frequencies, jnp.abs(ifo_j.data.fd), 
+                         label='Jim data', alpha=0.7)
+        axes[0, i].set_xlabel('Frequency [Hz]')
+        axes[0, i].set_ylabel('|Strain| [strain/√Hz]')
+        axes[0, i].set_title(f'{ifo_b.name} - Data Comparison')
+        axes[0, i].legend()
+        axes[0, i].grid(True, alpha=0.3)
+        axes[0, i].set_xlim(fmin, fmax)
+
+        # Plot data residual (real and imaginary parts)
+        data_residual = ifo_b.frequency_domain_strain - jim_data_interp
+        axes[1, i].semilogx(ifo_b.frequency_array, jnp.real(data_residual), 
+                           label='Real part', alpha=0.7)
+        axes[1, i].semilogx(ifo_b.frequency_array, jnp.imag(data_residual), 
+                           label='Imaginary part', alpha=0.7)
+        
+        # Set y-axis range based on max residual values
+        # max_real_residual = jnp.max(jnp.abs(jnp.real(data_residual)))
+        # max_imag_residual = jnp.max(jnp.abs(jnp.imag(data_residual)))
+        # max_data_residual = max(max_real_residual, max_imag_residual)
+        # axes[1, i].set_ylim(-1.2 * max_data_residual, 1.2 * max_data_residual)
+        axes[1, i].set_ylim(-1e-25, 1e-25)
+        
+        axes[1, i].set_xlabel('Frequency [Hz]')
+        axes[1, i].set_ylabel('Strain Residual [strain/√Hz]')
+        axes[1, i].set_title(f'{ifo_b.name} - Data Residual (Bilby - Jim)')
+        axes[1, i].legend()
+        axes[1, i].grid(True, alpha=0.3)
+        axes[1, i].set_xlim(fmin, fmax)
+        
+        # Plot PSD comparison
+        axes[2, i].loglog(ifo_b.frequency_array, ifo_b.power_spectral_density_array, 
+                         label='Bilby PSD', alpha=0.7)
+        axes[2, i].loglog(ifo_j.psd.frequencies, ifo_j.psd.values, 
+                         label='Jim PSD', alpha=0.7)
+        axes[2, i].set_xlabel('Frequency [Hz]')
+        axes[2, i].set_ylabel('PSD [strain²/Hz]')
+        axes[2, i].set_title(f'{ifo_b.name} - PSD Comparison')
+        axes[2, i].legend()
+        axes[2, i].grid(True, alpha=0.3)
+        axes[2, i].set_xlim(fmin, fmax)
+        
+        # Plot PSD residual (absolute difference)
+        psd_residual = ifo_b.power_spectral_density_array - jim_psd_interp
+        axes[3, i].semilogx(ifo_b.frequency_array, psd_residual, 
+                           label='Absolute difference', alpha=0.7, color='red')
+        
+        # Set y-axis range based on max PSD residual values
+        # max_psd_residual = jnp.max(jnp.abs(psd_residual))
+        # axes[3, i].set_ylim(-1.2 * max_psd_residual, 1.2 * max_psd_residual)
+        axes[3, i].set_ylim(-1e-43, 1e-43)
+        
+        axes[3, i].set_xlabel('Frequency [Hz]')
+        axes[3, i].set_ylabel('PSD Residual [strain²/Hz]')
+        axes[3, i].set_title(f'{ifo_b.name} - PSD Residual (Bilby - Jim)')
+        # axes[3, i].legend()
+        axes[3, i].grid(True, alpha=0.3)
+        axes[3, i].set_xlim(fmin, fmax)
+    
+    plt.tight_layout()
+    plt.savefig(f"{event_outdir}/data_psd_comparison.jpg", dpi=150, bbox_inches='tight')
+    plt.close()
+    print("Data/PSD comparison plot saved.")
+    
     # -------------------------------
     # Set up waveform
     # -------------------------------
