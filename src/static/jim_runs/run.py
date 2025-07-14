@@ -122,7 +122,7 @@ def run_pe(args: argparse.Namespace):
         # set an NFFT corresponding to the analysis segment duration
         psd_fftlength = ifo_b.duration * ifo_b.sampling_frequency
         psd_noverlap = psd_fftlength * float(bilby_data_dump.meta_data['command_line_args']['psd_fractional_overlap'])
-        ifo_j.set_psd(psd_data.to_psd(nperseg=psd_fftlength, noverlap=psd_noverlap))
+        ifo_j.set_psd(psd_data.to_psd(nperseg=psd_fftlength, noverlap=psd_noverlap, average='median'))
 
         # set analysis data
         data = Data.from_gwosc(ifo_b.name, ifo_b.start_time, ifo_b.start_time + ifo_b.duration)
@@ -164,14 +164,7 @@ def run_pe(args: argparse.Namespace):
                            label='Real part', alpha=0.7)
         axes[1, i].semilogx(ifo_b.frequency_array, jnp.imag(data_residual), 
                            label='Imaginary part', alpha=0.7)
-        
-        # Set y-axis range based on max residual values
-        # max_real_residual = jnp.max(jnp.abs(jnp.real(data_residual)))
-        # max_imag_residual = jnp.max(jnp.abs(jnp.imag(data_residual)))
-        # max_data_residual = max(max_real_residual, max_imag_residual)
-        # axes[1, i].set_ylim(-1.2 * max_data_residual, 1.2 * max_data_residual)
         axes[1, i].set_ylim(-1e-25, 1e-25)
-        
         axes[1, i].set_xlabel('Frequency [Hz]')
         axes[1, i].set_ylabel('Strain Residual [strain/√Hz]')
         axes[1, i].set_title(f'{ifo_b.name} - Data Residual (Bilby - Jim)')
@@ -191,20 +184,15 @@ def run_pe(args: argparse.Namespace):
         axes[2, i].grid(True, alpha=0.3)
         axes[2, i].set_xlim(fmin, fmax)
         
-        # Plot PSD residual (absolute difference)
-        psd_residual = ifo_b.power_spectral_density_array - jim_psd_interp
-        axes[3, i].semilogx(ifo_b.frequency_array, psd_residual, 
-                           label='Absolute difference', alpha=0.7, color='red')
-        
-        # Set y-axis range based on max PSD residual values
-        # max_psd_residual = jnp.max(jnp.abs(psd_residual))
-        # axes[3, i].set_ylim(-1.2 * max_psd_residual, 1.2 * max_psd_residual)
-        axes[3, i].set_ylim(-1e-43, 1e-43)
-        
+        # Plot PSD residual (absolute fractional difference)
+        psd_residual_frac = (ifo_b.power_spectral_density_array - jim_psd_interp) / ifo_b.power_spectral_density_array
+        psd_residual_abs_frac = jnp.abs(psd_residual_frac)
+        axes[3, i].semilogx(ifo_b.frequency_array, psd_residual_abs_frac, 
+                           label='Absolute fractional difference', alpha=0.7, color='red')    
         axes[3, i].set_xlabel('Frequency [Hz]')
-        axes[3, i].set_ylabel('PSD Residual [strain²/Hz]')
-        axes[3, i].set_title(f'{ifo_b.name} - PSD Residual (Bilby - Jim)')
-        # axes[3, i].legend()
+        axes[3, i].set_ylabel('|PSD Fractional Residual|')
+        axes[3, i].set_title(f'{ifo_b.name} - PSD Residual |Bilby - Jim|/Bilby')
+        axes[3, i].legend()
         axes[3, i].grid(True, alpha=0.3)
         axes[3, i].set_xlim(fmin, fmax)
     
