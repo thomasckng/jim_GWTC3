@@ -35,7 +35,7 @@ from jimgw.core.prior import (
     SimpleConstrainedPrior,
 )
 from jimgw.core.transforms import PeriodicTransform, BoundToUnbound
-from jimgw.core.single_event.detector import detector_preset
+from jimgw.core.single_event.detector import get_detector_preset
 from jimgw.core.single_event.data import Data, PowerSpectrum
 from jimgw.core.single_event.likelihood import (
     TransientLikelihoodFD,
@@ -91,7 +91,7 @@ def run_pe(args: argparse.Namespace):
     # -------------------------------
 
     bilby_ifos = bilby_data_dump.interferometers
-    jim_ifos = [detector_preset[ifo.name] for ifo in bilby_ifos]
+    jim_ifos = [get_detector_preset()[ifo.name] for ifo in bilby_ifos]
     gps = bilby_data_dump.trigger_time
     fmins = [ifo.minimum_frequency for ifo in bilby_ifos]
     fmaxs = [ifo.maximum_frequency for ifo in bilby_ifos]
@@ -105,33 +105,68 @@ def run_pe(args: argparse.Namespace):
     fmax = max(fmaxs)
 
     for ifo_b, ifo_j in zip(bilby_ifos, jim_ifos):
-        # Load PSD data from GWOSC
-        psd_start = bilby_data_dump.meta_data['command_line_args']['psd_start_time']
-        psd_duration = float(bilby_data_dump.meta_data['command_line_args']['psd_length']) * ifo_b.duration
-        psd_start = ifo_b.start_time - psd_duration if psd_start is None else float(psd_start)
+        if args.use_bilby_psd:
+            print(f"Using bilby PSD for {ifo_b.name}")
+            # This line triggers the freq_domain_strain calculation
+            # which then triggers the window factor computation
+            # which is then multiplied to the bilby psd_array as final output.
+            _ = ifo_b.frequency_domain_strain
 
-        psd_data = Data.from_gwosc(ifo_b.name, psd_start, psd_start + psd_duration)
-        if jnp.isnan(psd_data.td).any():
-            raise ValueError(
-                f"PSD data for {ifo_b.name} contains NaNs."
+            jim_psd = PowerSpectrum(
+                values=ifo_b.power_spectral_density_array,
+                frequencies=ifo_b.frequency_array,
+                name=ifo_b.name + "_psd",
             )
-        
-        alpha = 2 * float(bilby_data_dump.meta_data['command_line_args']['tukey_roll_off']) / ifo_b.duration
-        psd_data.set_tukey_window(alpha=alpha)
+            ifo_j.set_psd(jim_psd)
+        else:
+            print(f"Computing PSD from GWOSC data for {ifo_b.name}")
+            # Load PSD data from GWOSC
+            psd_start = bilby_data_dump.meta_data['command_line_args']['psd_start_time']
+            psd_duration = float(bilby_data_dump.meta_data['command_line_args']['psd_length']) * ifo_b.duration
+            psd_start = ifo_b.start_time - psd_duration if psd_start is None else float(psd_start)
 
-        # set an NFFT corresponding to the analysis segment duration
-        psd_fftlength = ifo_b.duration * ifo_b.sampling_frequency
-        psd_noverlap = psd_fftlength * float(bilby_data_dump.meta_data['command_line_args']['psd_fractional_overlap'])
-        ifo_j.set_psd(psd_data.to_psd(nperseg=psd_fftlength, noverlap=psd_noverlap, average='median'))
+            psd_data = Data.from_gwosc(ifo_b.name, psd_start, psd_start + psd_duration)
+            if jnp.isnan(psd_data.td).any():
+                raise ValueError(
+                    f"PSD data for {ifo_b.name} contains NaNs."
+                )
+            
+            alpha = 2 * float(bilby_data_dump.meta_data['command_line_args']['tukey_roll_off']) / ifo_b.duration
+            psd_data.set_tukey_window(alpha=alpha)
 
-        # set analysis data
-        data = Data.from_gwosc(ifo_b.name, ifo_b.start_time, ifo_b.start_time + ifo_b.duration)
-        ifo_j.set_data(data)
+            # set an NFFT corresponding to the analysis segment duration
+            psd_fftlength = ifo_b.duration * ifo_b.sampling_frequency
+            psd_noverlap = psd_fftlength * float(bilby_data_dump.meta_data['command_line_args']['psd_fractional_overlap'])
+            ifo_j.set_psd(psd_data.to_psd(nperseg=psd_fftlength, noverlap=psd_noverlap, average='median'))
+
+        if args.use_bilby_data:
+            print(f"Using bilby frequency domain strain data for {ifo_b.name}")
+            # This line triggers the freq_domain_strain calculation
+            # which then triggers the window factor computation
+            # which is then multiplied to the bilby psd_array as final output.
+            _ = ifo_b.frequency_domain_strain
+
+            # set analysis data from bilby
+            jim_data = Data.from_fd(
+                fd=ifo_b.frequency_domain_strain,
+                frequencies=ifo_b.frequency_array,
+                epoch=ifo_b.start_time,
+                name=ifo_b.name + "_fd_data",
+            )
+            ifo_j.set_data(jim_data)
+        else:
+            print(f"Loading analysis data from GWOSC for {ifo_b.name}")
+            # set analysis data from GWOSC
+            data = Data.from_gwosc(ifo_b.name, ifo_b.start_time, ifo_b.start_time + ifo_b.duration)
+            ifo_j.set_data(data)
 
     # -------------------------------
     # Compare data and PSD between bilby and jim
     # -------------------------------
-    print("Creating comparison plots between bilby and jim data/PSD...")
+    psd_source = "bilby" if args.use_bilby_psd else "GWOSC"
+    data_source = "bilby" if args.use_bilby_data else "GWOSC"
+    print(f"Creating comparison plots between bilby and jim data/PSD...")
+    print(f"Jim PSD source: {psd_source}, Jim data source: {data_source}")
     
     # Create comparison plots (4 rows: data, PSD, data residual, PSD residual)
     fig, axes = plt.subplots(4, len(bilby_ifos), figsize=(5*len(bilby_ifos), 16))
@@ -150,7 +185,7 @@ def run_pe(args: argparse.Namespace):
         axes[0, i].loglog(ifo_b.frequency_array, jnp.abs(ifo_b.frequency_domain_strain), 
                          label='Bilby data', alpha=0.7)
         axes[0, i].loglog(ifo_j.data.frequencies, jnp.abs(ifo_j.data.fd), 
-                         label='Jim data', alpha=0.7)
+                         label=f'Jim data ({data_source})', alpha=0.7)
         axes[0, i].set_xlabel('Frequency [Hz]')
         axes[0, i].set_ylabel('|Strain| [strain/√Hz]')
         axes[0, i].set_title(f'{ifo_b.name} - Data Comparison')
@@ -167,7 +202,7 @@ def run_pe(args: argparse.Namespace):
         axes[1, i].set_ylim(-1e-25, 1e-25)
         axes[1, i].set_xlabel('Frequency [Hz]')
         axes[1, i].set_ylabel('Strain Residual [strain/√Hz]')
-        axes[1, i].set_title(f'{ifo_b.name} - Data Residual (Bilby - Jim)')
+        axes[1, i].set_title(f'{ifo_b.name} - Data Residual (Bilby - Jim/{data_source})')
         axes[1, i].legend()
         axes[1, i].grid(True, alpha=0.3)
         axes[1, i].set_xlim(fmin, fmax)
@@ -176,7 +211,7 @@ def run_pe(args: argparse.Namespace):
         axes[2, i].loglog(ifo_b.frequency_array, ifo_b.power_spectral_density_array, 
                          label='Bilby PSD', alpha=0.7)
         axes[2, i].loglog(ifo_j.psd.frequencies, ifo_j.psd.values, 
-                         label='Jim PSD', alpha=0.7)
+                         label=f'Jim PSD ({psd_source})', alpha=0.7)
         axes[2, i].set_xlabel('Frequency [Hz]')
         axes[2, i].set_ylabel('PSD [strain²/Hz]')
         axes[2, i].set_title(f'{ifo_b.name} - PSD Comparison')
@@ -191,7 +226,7 @@ def run_pe(args: argparse.Namespace):
                            label='Absolute fractional difference', alpha=0.7, color='red')    
         axes[3, i].set_xlabel('Frequency [Hz]')
         axes[3, i].set_ylabel('|PSD Fractional Residual|')
-        axes[3, i].set_title(f'{ifo_b.name} - PSD Residual |Bilby - Jim|/Bilby')
+        axes[3, i].set_title(f'{ifo_b.name} - PSD Residual |Bilby - Jim/{psd_source}|/Bilby')
         axes[3, i].legend()
         axes[3, i].grid(True, alpha=0.3)
         axes[3, i].set_xlim(fmin, fmax)

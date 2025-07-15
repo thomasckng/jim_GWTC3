@@ -28,5 +28,15 @@ def get_parser(**kwargs):
         default=0,
         help="Relative binning mode: 0=normal, 1=fixed reference, 2=optimised reference",
     )
+    parser.add_argument(
+        "--use-bilby-psd",
+        action="store_true",
+        help="Use PSD from bilby instead of computing from GWOSC data",
+    )
+    parser.add_argument(
+        "--use-bilby-data",
+        action="store_true",
+        help="Use frequency domain strain data from bilby instead of loading from GWOSC",
+    )
 
     return parser
