@@ -38,7 +38,7 @@ from jimgw.core.transforms import PeriodicTransform, BoundToUnbound
 from jimgw.core.single_event.detector import get_detector_preset
 from jimgw.core.single_event.data import Data, PowerSpectrum
 from jimgw.core.single_event.likelihood import (
-    TransientLikelihoodFD,
+    BaseTransientLikelihoodFD,
     HeterodynedTransientLikelihoodFD,
 )
 from jimgw.core.single_event.waveform import RippleIMRPhenomPv2
@@ -353,13 +353,12 @@ def run_pe(args: argparse.Namespace):
     # -------------------------------
     if args.relative_binning == 0:
         print("Using normal likelihood")
-        likelihood = TransientLikelihoodFD(
-            jim_ifos,
+        likelihood = BaseTransientLikelihoodFD(
+            detectors=jim_ifos,
             waveform=waveform,
             trigger_time=gps,
             f_min=fmin,
             f_max=fmax,
-            # marginalization="time",
         )
     elif args.relative_binning == 1:
         print("Using heterodyned likelihood with fixed reference parameters (bilby maxL sample)")
@@ -397,7 +396,7 @@ def run_pe(args: argparse.Namespace):
     elif args.relative_binning == 2:
         print("Using heterodyned likelihood with optimised reference parameters")
         likelihood = HeterodynedTransientLikelihoodFD(
-            jim_ifos,
+            detectors=jim_ifos,
             waveform=waveform,
             n_bins=1_000,
             trigger_time=gps,
@@ -450,6 +449,7 @@ def run_pe(args: argparse.Namespace):
         n_NFproposal_batch_size=5,
         local_thinning=1,
         global_thinning=10,
+        n_temperatures=0,
         verbose=True,
     )
 
