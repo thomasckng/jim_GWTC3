@@ -199,7 +199,6 @@ def run_pe(args: argparse.Namespace):
                            label='Real part', alpha=0.7)
         axes[1, i].semilogx(ifo_b.frequency_array, jnp.imag(data_residual), 
                            label='Imaginary part', alpha=0.7)
-        axes[1, i].set_ylim(-1e-25, 1e-25)
         axes[1, i].set_xlabel('Frequency [Hz]')
         axes[1, i].set_ylabel('Strain Residual [strain/√Hz]')
         axes[1, i].set_title(f'{ifo_b.name} - Data Residual (Bilby - Jim/{data_source})')
@@ -436,7 +435,7 @@ def run_pe(args: argparse.Namespace):
         n_chains=500,
         n_local_steps=100,
         n_global_steps=1000,
-        n_training_loops=100,
+        n_training_loops=20,
         n_production_loops=10,
         n_epochs=20,
         mala_step_size=mass_matrix,
@@ -445,8 +444,8 @@ def run_pe(args: argparse.Namespace):
         rq_spline_n_layers=8,
         learning_rate=1e-3,
         batch_size=10000,
-        n_max_examples=10000,
-        n_NFproposal_batch_size=5,
+        n_max_examples=30000,
+        n_NFproposal_batch_size=100,
         local_thinning=1,
         global_thinning=10,
         n_temperatures=0,
