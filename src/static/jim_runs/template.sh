@@ -5,7 +5,7 @@
 #SBATCH --output={{{OUTDIR}}}/{{{GW_ID}}}/%x.out
 #SBATCH --error={{{OUTDIR}}}/{{{GW_ID}}}/%x.err
 
-# Initialize Conda
+# Initialize environment
 source ~/.bashrc
 source /home/user/ckng/.venv/jim/bin/activate
 
