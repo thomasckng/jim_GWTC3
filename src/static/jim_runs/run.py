@@ -199,7 +199,7 @@ def run_pe(args: argparse.Namespace):
                            label='Real part', alpha=0.7)
         axes[1, i].semilogx(ifo_b.frequency_array, jnp.imag(data_residual), 
                            label='Imaginary part', alpha=0.7)
-        axes[1, i].set_ylim(-1e-22, 1e-22)
+        axes[1, i].set_ylim(-1e-23, 1e-23)
         axes[1, i].set_xlabel('Frequency [Hz]')
         axes[1, i].set_ylabel('Strain Residual [strain/√Hz]')
         axes[1, i].set_title(f'{ifo_b.name} - Data Residual (Bilby - Jim/{data_source})')
@@ -270,10 +270,10 @@ def run_pe(args: argparse.Namespace):
     # prior += [theta_jn_prior, phi_jl_prior, tilt_1_prior, tilt_2_prior, phi_12_prior, a_1_prior, a_2_prior]
 
     # Extrinsic priors
-    # dL_prior = SimpleConstrainedPrior([PowerLawPrior(1.0, dL_upper, 2.0, parameter_names=["d_L"])])
-    dL_prior = PowerLawPrior(1.0, dL_upper, 2.0, parameter_names=["d_L"])
-    # t_c_prior = SimpleConstrainedPrior([UniformPrior(-0.1, 0.1, parameter_names=["t_c"])])
-    t_c_prior = UniformPrior(-0.1, 0.1, parameter_names=["t_c"])
+    dL_prior = SimpleConstrainedPrior([PowerLawPrior(1.0, dL_upper, 2.0, parameter_names=["d_L"])])
+    # dL_prior = PowerLawPrior(1.0, dL_upper, 2.0, parameter_names=["d_L"])
+    t_c_prior = SimpleConstrainedPrior([UniformPrior(-0.1, 0.1, parameter_names=["t_c"])])
+    # t_c_prior = UniformPrior(-0.1, 0.1, parameter_names=["t_c"])
     phase_c_prior = UniformPrior(0.0, 2 * jnp.pi, parameter_names=["phase_c"])
     psi_prior = UniformPrior(0.0, jnp.pi, parameter_names=["psi"])
     ra_prior = UniformPrior(0.0, 2 * jnp.pi, parameter_names=["ra"])
@@ -283,13 +283,13 @@ def run_pe(args: argparse.Namespace):
               phase_c_prior, psi_prior, ra_prior, dec_prior]
 
     # Extra priors for periodic parameters
-    prior += [
-        RayleighPrior(1.0, parameter_names=["periodic_1"]),
-        RayleighPrior(1.0, parameter_names=["periodic_2"]),
-        RayleighPrior(1.0, parameter_names=["periodic_3"]),
-        RayleighPrior(1.0, parameter_names=["periodic_4"]),
-        RayleighPrior(1.0, parameter_names=["periodic_5"]),
-    ]
+    # prior += [
+    #     RayleighPrior(1.0, parameter_names=["periodic_1"]),
+    #     RayleighPrior(1.0, parameter_names=["periodic_2"]),
+    #     RayleighPrior(1.0, parameter_names=["periodic_3"]),
+    #     RayleighPrior(1.0, parameter_names=["periodic_4"]),
+    #     RayleighPrior(1.0, parameter_names=["periodic_5"]),
+    # ]
 
     # Combine all priors into a single prior object
     prior = CombinePrior(prior)
@@ -299,25 +299,28 @@ def run_pe(args: argparse.Namespace):
     # -------------------------------
     sample_transforms = [
         # Transformations for luminosity distance
-        # DistanceToSNRWeightedDistanceTransform(gps_time=gps, ifos=jim_ifos),
-        BoundToUnbound(name_mapping=(["d_L"], ["d_L_unbounded"]), original_lower_bound=0.0, original_upper_bound=dL_upper),
+        DistanceToSNRWeightedDistanceTransform(gps_time=gps, ifos=jim_ifos),
+        # BoundToUnbound(name_mapping=(["d_L"], ["d_L_unbounded"]), original_lower_bound=0.0, original_upper_bound=dL_upper),
 
         # Transformations for phase
-        # GeocentricArrivalPhaseToDetectorArrivalPhaseTransform(gps_time=gps, ifo=jim_ifos[0]),
+        GeocentricArrivalPhaseToDetectorArrivalPhaseTransform(gps_time=gps, ifo=jim_ifos[0]),
         # PeriodicTransform(name_mapping=(["periodic_4", "phase_det"], ["phase_det_x", "phase_det_y"]), xmin=0.0, xmax=2 * jnp.pi),
-        PeriodicTransform(name_mapping=(["periodic_4", "phase_c"], ["phase_c_x", "phase_c_y"]), xmin=0.0, xmax=2 * jnp.pi),
+        BoundToUnbound(name_mapping=(["phase_det"], ["phase_det_unbounded"]), original_lower_bound=0.0, original_upper_bound=2 * jnp.pi),
+        # PeriodicTransform(name_mapping=(["periodic_4", "phase_c"], ["phase_c_x", "phase_c_y"]), xmin=0.0, xmax=2 * jnp.pi),
 
         # Transformations for time
-        # GeocentricArrivalTimeToDetectorArrivalTimeTransform(gps_time=gps, ifo=jim_ifos[0]),
-        BoundToUnbound(name_mapping=(["t_c"], ["t_c_unbounded"]), original_lower_bound=-0.1, original_upper_bound=0.1),
+        GeocentricArrivalTimeToDetectorArrivalTimeTransform(gps_time=gps, ifo=jim_ifos[0]),
+        # BoundToUnbound(name_mapping=(["t_c"], ["t_c_unbounded"]), original_lower_bound=-0.1, original_upper_bound=0.1),
 
         # Transformations for sky position
         SkyFrameToDetectorFrameSkyPositionTransform(gps_time=gps, ifos=jim_ifos),
         BoundToUnbound(name_mapping=(["zenith"], ["zenith_unbounded"]), original_lower_bound=0.0, original_upper_bound=jnp.pi),
-        PeriodicTransform(name_mapping=(["periodic_3", "azimuth"], ["azimuth_x", "azimuth_y"]), xmin=0.0, xmax=2 * jnp.pi),
+        # PeriodicTransform(name_mapping=(["periodic_3", "azimuth"], ["azimuth_x", "azimuth_y"]), xmin=0.0, xmax=2 * jnp.pi),
+        BoundToUnbound(name_mapping=(["azimuth"], ["azimuth_unbounded"]), original_lower_bound=0.0, original_upper_bound=2 * jnp.pi),
 
         # Transformations for polarization angle
-        PeriodicTransform(name_mapping=(["periodic_5", "psi"], ["psi_base_x", "psi_base_y"]), xmin=0.0, xmax=jnp.pi),
+        # PeriodicTransform(name_mapping=(["periodic_5", "psi"], ["psi_base_x", "psi_base_y"]), xmin=0.0, xmax=jnp.pi),
+        BoundToUnbound(name_mapping=(["psi"], ["psi_unbounded"]), original_lower_bound=0.0, original_upper_bound=jnp.pi),
 
         # Transformations for masses
         BoundToUnbound(name_mapping=(["M_c"], ["M_c_unbounded"]), original_lower_bound=Mc_lower, original_upper_bound=Mc_upper),
@@ -325,8 +328,10 @@ def run_pe(args: argparse.Namespace):
 
         # Transformations for spins
         BoundToUnbound(name_mapping=(["iota"], ["iota_unbounded"]), original_lower_bound=0.0, original_upper_bound=jnp.pi),
-        PeriodicTransform(name_mapping=(["periodic_1", "s1_phi"], ["s1_phi_base_x", "s1_phi_base_y"]), xmin=0.0, xmax=2 * jnp.pi),
-        PeriodicTransform(name_mapping=(["periodic_2", "s2_phi"], ["s2_phi_base_x", "s2_phi_base_y"]), xmin=0.0, xmax=2 * jnp.pi),
+        # PeriodicTransform(name_mapping=(["periodic_1", "s1_phi"], ["s1_phi_base_x", "s1_phi_base_y"]), xmin=0.0, xmax=2 * jnp.pi),
+        BoundToUnbound(name_mapping=(["s1_phi"], ["s1_phi_unbounded"]), original_lower_bound=0.0, original_upper_bound=2 * jnp.pi),
+        # PeriodicTransform(name_mapping=(["periodic_2", "s2_phi"], ["s2_phi_base_x", "s2_phi_base_y"]), xmin=0.0, xmax=2 * jnp.pi),
+        BoundToUnbound(name_mapping=(["s2_phi"], ["s2_phi_unbounded"]), original_lower_bound=0.0, original_upper_bound=2 * jnp.pi),
         BoundToUnbound(name_mapping=(["s1_theta"], ["s1_theta_unbounded"]), original_lower_bound=0.0, original_upper_bound=jnp.pi),
         BoundToUnbound(name_mapping=(["s2_theta"], ["s2_theta_unbounded"]), original_lower_bound=0.0, original_upper_bound=jnp.pi),
         BoundToUnbound(name_mapping=(["s1_mag"], ["s1_mag_unbounded"]), original_lower_bound=0.0, original_upper_bound=0.99),
@@ -419,10 +424,10 @@ def run_pe(args: argparse.Namespace):
     mass_matrix = jnp.eye(prior.n_dims)
     # q_index = parameter_names.index("q")
     # mass_matrix = mass_matrix.at[q_index, q_index].set(1e-3)
-    # dL_index = parameter_names.index("d_L")
-    # mass_matrix = mass_matrix.at[dL_index, dL_index].set(1e4)
-    # tc_index = parameter_names.index("t_c")
-    # mass_matrix = mass_matrix.at[tc_index, tc_index].set(1e-1)
+    dL_index = parameter_names.index("d_L")
+    mass_matrix = mass_matrix.at[dL_index, dL_index].set(1e4)
+    tc_index = parameter_names.index("t_c")
+    mass_matrix = mass_matrix.at[tc_index, tc_index].set(1e-1)
     mass_matrix *= 2e-3
     print("Initial mass matrix (diagonal):")
     print({k: v for k, v in zip(parameter_names, jnp.diag(mass_matrix))})
