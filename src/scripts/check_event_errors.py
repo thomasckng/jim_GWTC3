@@ -3,18 +3,20 @@
 Script to check for errors in event processing and mark them in event_status.csv.
 
 This script reads the event_status.csv file
-2. Checks which events have figures in figures_0 and figures_A directories
+2. Checks which events have figures in the various figures directories
 3. For events that don't have figures, checks the error files for actual errors
 4. Updates the CSV with error information
 
 Usage:
-    python check_event_errors.py              # Check all runs and update the CSV file
-    python check_event_errors.py -r 0         # Check only Run 0
-    python check_event_errors.py -r A         # Check only Run A
+    python check_event_errors.py                                    # Check all runs and update the CSV file
+    python check_event_errors.py -r bilby_baseline                  # Check only bilby_baseline column
+    python check_event_errors.py -r gwosc_+chains                   # Check only gwosc_+chains column
 
-The script maps:
-- figures_0/ directory ↔ outdir_0/ (Run 0)
-- figures_A/ directory ↔ outdir_A/ (Run A)
+The script maps figure directories to output directories:
+- figures_bilby_baseline/ ↔ outdir_bilby_baseline/
+- figures_gwosc_baseline/ ↔ outdir_gwosc_baseline/
+- figures_bilby_+chains/ ↔ outdir_bilby_+chains/
+- figures_gwosc_+chains/ ↔ outdir_gwosc_+chains/
 
 For each event:
 - If figure exists: preserves existing content (doesn't overwrite any existing scores)
@@ -32,9 +34,7 @@ For each event:
 
 ## File Management:
 - Uses the existing `paths.py` module for consistent path handling
-- Handles both directory mappings:
-  - `figures_0/` ↔ `outdir_0/` (Run 0)
-  - `figures_A/` ↔ `outdir_A/` (Run A)
+- Handles directory mappings between figures directories and output directories
 - Can process specific runs or all runs depending on command-line options
 """
 
@@ -139,9 +139,8 @@ def check_event_status(specific_run=None):
         with open(csv_file, 'r') as f:
             reader = csv.DictReader(f)
             fieldnames = reader.fieldnames
-            run_column = f"Run {specific_run}"
-            if run_column not in fieldnames:
-                print(f"Error: Column '{run_column}' not found in CSV. Available columns: {fieldnames}")
+            if specific_run not in fieldnames:
+                print(f"Error: Column '{specific_run}' not found in CSV. Available columns: {fieldnames}")
                 return
         runs_to_check = [specific_run]
     else:
@@ -149,10 +148,10 @@ def check_event_status(specific_run=None):
         with open(csv_file, 'r') as f:
             reader = csv.DictReader(f)
             fieldnames = reader.fieldnames
+            # Get all columns except Event and SNR
             for field in fieldnames:
-                if field.startswith("Run "):
-                    run_suffix = field.replace("Run ", "")
-                    runs_to_check.append(run_suffix)
+                if field not in ['Event', 'SNR']:
+                    runs_to_check.append(field)
     
     print(f"Checking runs: {runs_to_check}")
     
@@ -185,7 +184,7 @@ def check_event_status(specific_run=None):
             event = row['Event']
             
             for run in runs_to_check:
-                run_column = f"Run {run}"
+                run_column = run  # Use the column name directly
                 data = run_data[run]
                 
                 if event not in data['figures_events']:
@@ -194,10 +193,10 @@ def check_event_status(specific_run=None):
                     if error_file.exists():
                         error_msg = extract_error_message(error_file)
                         row[run_column] = f"ERROR: {error_msg}"
-                        print(f"Run {run} - {event}: {error_msg}")
+                        print(f"{run} - {event}: {error_msg}")
                     else:
                         row[run_column] = "Missing (no error file)"
-                        print(f"Run {run} - {event}: Missing (no error file)")
+                        print(f"{run} - {event}: Missing (no error file)")
                 else:
                     # Don't change existing content for successful events (preserve any existing scores)
                     pass
@@ -215,11 +214,11 @@ def check_event_status(specific_run=None):
     # Print summary for each run
     print("\n=== SUMMARY ===")
     for run in runs_to_check:
-        run_column = f"Run {run}"
+        run_column = run  # Use the column name directly
         errors = sum(1 for row in updated_rows if row[run_column].startswith('ERROR'))
         missing = sum(1 for row in updated_rows if row[run_column].startswith('Missing'))
         preserved = sum(1 for row in updated_rows if not row[run_column].startswith('ERROR') and not row[run_column].startswith('Missing'))
-        print(f"Run {run}: {preserved} preserved (successful), {errors} errors, {missing} missing")
+        print(f"{run}: {preserved} preserved (successful), {errors} errors, {missing} missing")
 
 
 if __name__ == "__main__":
@@ -231,12 +230,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "-r", "--run", 
         type=str,
-        help="Specify which run to check (e.g., '0', 'A', 'B'). If not specified, checks all runs."
+        help="Specify which run to check (e.g., 'bilby_baseline', 'gwosc_baseline', 'bilby_+chains', 'gwosc_+chains'). If not specified, checks all runs."
     )
     
     args = parser.parse_args()
     
     if args.run:
-        print(f"Checking only Run {args.run}")
+        print(f"Checking only {args.run}")
     
     check_event_status(specific_run=args.run)
